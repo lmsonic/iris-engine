@@ -270,17 +270,46 @@ mod tests {
     }
 
     proptest! {
-    #[test]
-    fn test_orthographic_frustum(
-        size in 0.1..100.0_f32,
-        aspect_ratio in 0.1..3.0_f32,
-        near in 0.1..1000.0_f32,
-        far in (0.1..1000.0_f32),
-        projection in projection_type_strategy(),
-    ) {
-        prop_assume!(near < far);
-        _test_orthographic_frustum(size, aspect_ratio, near, far, projection);
-    }
+        #[test]
+        fn test_orthographic_frustum(
+            size in 0.1..100.0_f32,
+            aspect_ratio in 0.1..3.0_f32,
+            near in 0.1..1000.0_f32,
+            far in (0.1..1000.0_f32),
+            projection in projection_type_strategy(),
+        ) {
+            prop_assume!(near < far);
+            _test_orthographic_frustum(size, aspect_ratio, near, far, projection);
+        }
+        #[test]
+        fn test_perspective_frustum(
+            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
+            aspect_ratio in 0.1..3.0_f32,
+            near in 0.1..100.0_f32,
+            far in 0.1..100.0_f32,
+            projection in projection_type_strategy(),
+        ) {
+            prop_assume!(near < far);
+            _test_perspective_frustum(fov_y, aspect_ratio, near, far, projection);
+        }
+        #[test]
+        fn test_perspective_infinite_frustum(
+            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
+            aspect_ratio in 0.1..3.0_f32,
+            near in 0.1..1000.0_f32,
+            projection in projection_type_strategy(),
+        ) {
+            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
+        }
+        #[test]
+        fn test_perspective_infinite_reverse_frustum(
+            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
+            aspect_ratio in 0.1..3.0_f32,
+            near in 0.1..1000.0_f32,
+            projection in projection_type_strategy(),
+        ) {
+            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
+        }
     }
     fn _test_orthographic_frustum(
         size: f32,
@@ -328,19 +357,6 @@ mod tests {
         assert_abs_diff_eq!(frustum.near, near, epsilon = 0.001);
         assert_abs_diff_eq!(frustum.far, far, epsilon = 0.001);
     }
-    proptest! {
-        #[test]
-        fn test_perspective_frustum(
-            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
-            aspect_ratio in 0.1..3.0_f32,
-            near in 0.1..100.0_f32,
-            far in 0.1..100.0_f32,
-            projection in projection_type_strategy(),
-        ) {
-            prop_assume!(near < far);
-            _test_perspective_frustum(fov_y, aspect_ratio, near, far, projection);
-        }
-    }
     fn _test_perspective_frustum(
         fov_y: f32,
         aspect_ratio: f32,
@@ -387,17 +403,6 @@ mod tests {
         assert_relative_eq!(frustum.near, near, max_relative = 0.99);
         assert_relative_eq!(frustum.far, far, max_relative = 0.99);
     }
-    proptest! {
-        #[test]
-        fn test_perspective_infinite_frustum(
-            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
-            aspect_ratio in 0.1..3.0_f32,
-            near in 0.1..1000.0_f32,
-            projection in projection_type_strategy(),
-        ) {
-            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
-        }
-    }
 
     fn _test_perspective_infinite_frustum(
         fov_y: f32,
@@ -438,18 +443,6 @@ mod tests {
         assert_relative_eq!(frustum.right, right, max_relative = 0.99);
         assert_relative_eq!(frustum.left, left, max_relative = 0.99);
         assert_relative_eq!(frustum.near, near, max_relative = 0.99);
-    }
-
-    proptest! {
-        #[test]
-        fn test_perspective_infinite_reverse_frustum(
-            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
-            aspect_ratio in 0.1..3.0_f32,
-            near in 0.1..1000.0_f32,
-            projection in projection_type_strategy(),
-        ) {
-            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
-        }
     }
 
     fn _test_perspective_infinite_reverse_frustum(

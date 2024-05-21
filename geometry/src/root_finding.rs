@@ -39,11 +39,11 @@ pub enum CubicSolution {
 
 #[must_use]
 #[allow(clippy::many_single_char_names)]
-pub fn solve_cubic(a: f32, b: f32, c: f32, d: f32) -> CubicSolution {
+pub fn solve_cubic(a_: f32, b: f32, c: f32, d: f32) -> CubicSolution {
     // Normalization
-    let b = c / a;
-    let c = d / a;
-    let a = b / a;
+    let a = b / a_;
+    let b = c / a_;
+    let c = d / a_;
     // Remove quadratic term by substituting x'=x-a/3
     let substitution_term = -a / 3.0;
     let p = -a * a / 3.0 + b;
@@ -188,20 +188,81 @@ fn newton_method<F: Fn(f32) -> f32>(f: F, x0: f32, iterations: usize) -> f32 {
 #[cfg(test)]
 mod tests {
 
-    use crate::root_finding::newton_method;
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
 
-    use super::newton_method_with_derivative;
+    use super::{
+        newton_method_with_derivative, solve_cubic, solve_quadratic, CubicSolution,
+        QuadraticSolution,
+    };
+    use crate::root_finding::newton_method;
+    use proptest::prelude::*;
+    proptest! {
+        #[test]
+        fn test_quadratic(
+            a in -1000.0..1000.0_f32,
+            b in -1000.0..1000.0_f32,
+            c in -1000.0..1000.0_f32,
+        ) {
+            prop_assume!(a != 0.0);
+            _test_quadratic(a,b,c);
+        }
+        #[test]
+        fn test_cubic(
+            a in -1000.0..1000.0_f32,
+            b in -1000.0..1000.0_f32,
+            c in -1000.0..1000.0_f32,
+            d in -1000.0..1000.0_f32,
+        ) {
+            prop_assume!(a != 0.0);
+            _test_cubic(a,b,c,d);
+        }
+    }
+    #[allow(clippy::many_single_char_names)]
+    fn _test_quadratic(a: f32, b: f32, c: f32) {
+        let solution = solve_quadratic(a, b, c);
+        let f = |x: f32| (a * x).mul_add(x, b * x) + c;
+        match solution {
+            QuadraticSolution::TwoReal(x1, x2) => {
+                assert_abs_diff_eq!(f(x1), 0.0, epsilon = 0.01);
+                assert_abs_diff_eq!(f(x2), 0.0, epsilon = 0.01);
+            }
+            QuadraticSolution::OneReal(x) => {
+                assert_abs_diff_eq!(f(x), 0.0, epsilon = 0.01);
+            }
+            QuadraticSolution::TwoComplex(_, _) => {}
+        }
+    }
+
+    #[allow(clippy::many_single_char_names)]
+    fn _test_cubic(a: f32, b: f32, c: f32, d: f32) {
+        let solution = solve_cubic(a, b, c, d);
+        let f = |x: f32| (a * x.powi(3) * b * x).mul_add(x, c * x) + d;
+        match solution {
+            CubicSolution::ThreeReal(x1, x2, x3) => {
+                assert_relative_eq!(f(x1), 0.0, epsilon = 0.01);
+                assert_abs_diff_eq!(f(x2), 0.0, epsilon = 0.01);
+                assert_abs_diff_eq!(f(x3), 0.0, epsilon = 0.01);
+            }
+            CubicSolution::TwoReal(x1, x2) => {
+                assert_relative_eq!(f(x1), 0.0, epsilon = 0.01);
+                assert_abs_diff_eq!(f(x2), 0.0, epsilon = 0.01);
+            }
+            CubicSolution::OneReal(x, _, _) => {
+                assert_abs_diff_eq!(f(x), 0.0, epsilon = 0.01);
+            }
+        }
+    }
     #[test]
-    fn exercise2() {
-        const PRECISION: f32 = 1e-4;
+    fn test_newton_method() {
         let f = |x: f32| x.ln() + x - 7.0;
         let df = |x: f32| x.recip() + 1.0;
         let root = newton_method_with_derivative(f, df, 5.0, 20);
-        dbg!(root, f(root));
-        assert!(f(root).abs() <= PRECISION);
-        let root2 = newton_method(f, 5.0, 20);
-        dbg!(root2, f(root2));
-        assert!(f(root2).abs() <= PRECISION);
-        assert!((root2 - root).abs() <= PRECISION);
+        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-4);
+    }
+    #[test]
+    fn test_newton_method_with_derivative() {
+        let f = |x: f32| x.ln() + x - 7.0;
+        let root = newton_method(f, 5.0, 20);
+        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-4);
     }
 }
