@@ -247,9 +247,12 @@ impl OrthographicFrustum {
 mod tests {
 
     use approx::{assert_abs_diff_eq, assert_relative_eq};
-    use glam::Vec3;
+    use glam::{Vec3, Vec4};
 
-    use crate::{frustum::PerspectiveFrustum, plane::Plane};
+    use crate::{
+        frustum::{clip_projection_matrix, PerspectiveFrustum},
+        plane::Plane,
+    };
     use proptest::prelude::*;
 
     use super::{Frustum, OrthographicFrustum};
@@ -436,5 +439,19 @@ mod tests {
         assert_relative_eq!(frustum.right, right, max_relative = 0.99);
         assert_relative_eq!(frustum.left, left, max_relative = 0.99);
         assert_relative_eq!(frustum.near, near, max_relative = 0.99);
+    }
+
+    #[test]
+    fn test() {
+        let perspective = PerspectiveFrustum::new(f32::to_radians(70.0), 1.2, 0.1, 100.0);
+        let matrix = clip_projection_matrix(
+            Plane::from_vec4(Vec4::new(1.0, 0.0, -1.0, -1.0)),
+            perspective.matrix_infinite_gl(),
+        );
+        let frustum = Frustum::from_matrix(matrix);
+        let dot = frustum.far.normal.dot(frustum.right.normal);
+        dbg!(dot);
+        // Bad precision
+        assert!(dot > 0.9);
     }
 }
