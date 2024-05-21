@@ -133,13 +133,12 @@ impl PerspectiveFrustum {
         Mat4::perspective_infinite_reverse_lh(self.fov_y, self.aspect_ratio, self.near)
     }
     #[must_use]
-    pub fn perspective_infinite_reverse_rh(&self) -> Mat4 {
+    pub fn matrix_infinite_reverse_rh(&self) -> Mat4 {
         Mat4::perspective_infinite_reverse_rh(self.fov_y, self.aspect_ratio, self.near)
     }
     #[must_use]
-    pub fn perspective_infinite_reverse_gl(&self) -> Mat4 {
+    pub fn matrix_infinite_reverse_gl(&self) -> Mat4 {
         let f = 1.0 / f32::tan(0.5 * self.fov_y);
-        // TODO: get the correct OPENGL matrix
         Mat4::from_cols(
             Vec4::new(f / self.aspect_ratio, 0.0, 0.0, 0.0),
             Vec4::new(0.0, f, 0.0, 0.0),
@@ -411,6 +410,59 @@ mod tests {
             ProjectionType::LeftHanded => Frustum::from_matrix(persp.matrix_infinite_lh()),
             ProjectionType::RightHanded => Frustum::from_matrix(persp.matrix_infinite_rh()),
             ProjectionType::OpenGL => Frustum::from_matrix_gl(persp.matrix_infinite_gl()),
+        };
+        let handedness = match projection {
+            ProjectionType::LeftHanded => 1.0,
+            ProjectionType::RightHanded | ProjectionType::OpenGL => -1.0,
+        };
+        let focal_distance = persp.focal_distance();
+        println!("fov = {}, ratio = {aspect_ratio}, near = {near}, type = {projection:?}, focal = {focal_distance}",fov_y.to_degrees());
+
+        let top = Plane::new(
+            Vec3::ZERO,
+            Vec3::new(0.0, -focal_distance, handedness * aspect_ratio.recip()),
+        );
+        let bottom = Plane::new(
+            Vec3::ZERO,
+            Vec3::new(0.0, focal_distance, handedness * aspect_ratio.recip()),
+        );
+        let right = Plane::new(Vec3::ZERO, Vec3::new(-focal_distance, 0.0, handedness));
+        let left = Plane::new(Vec3::ZERO, Vec3::new(focal_distance, 0.0, handedness));
+        let near = Plane::new(
+            Vec3::new(0.0, 0.0, handedness * persp.near),
+            handedness * Vec3::Z,
+        );
+
+        assert_relative_eq!(frustum.top, top, max_relative = 0.99);
+        assert_relative_eq!(frustum.bottom, bottom, max_relative = 0.99);
+        assert_relative_eq!(frustum.right, right, max_relative = 0.99);
+        assert_relative_eq!(frustum.left, left, max_relative = 0.99);
+        assert_relative_eq!(frustum.near, near, max_relative = 0.99);
+    }
+
+    proptest! {
+        #[test]
+        fn test_perspective_infinite_reverse_frustum(
+            fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
+            aspect_ratio in 0.1..3.0_f32,
+            near in 0.1..1000.0_f32,
+            projection in projection_type_strategy(),
+        ) {
+            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
+        }
+    }
+
+    fn _test_perspective_infinite_reverse_frustum(
+        fov_y: f32,
+        aspect_ratio: f32,
+        near: f32,
+        projection: ProjectionType,
+    ) {
+        let persp = PerspectiveFrustum::new(fov_y, aspect_ratio, near, 100.0);
+        let frustum = match projection {
+            ProjectionType::LeftHanded => Frustum::from_matrix(persp.matrix_infinite_reverse_lh()),
+            ProjectionType::RightHanded => Frustum::from_matrix(persp.matrix_infinite_reverse_rh()),
+            ProjectionType::OpenGL => Frustum::from_matrix_gl(persp.matrix_infinite_reverse_gl()),
         };
         let handedness = match projection {
             ProjectionType::LeftHanded => 1.0,
