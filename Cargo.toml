@@ -1,0 +1,15 @@
+[workspace]
+
+members = ["geometry", "xtask"]
+resolver = "2"
+[workspace.lints.rust]
+missing_copy_implementations = "warn"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+suspicious = "warn"
+complexity = "warn"
+perf = "warn"
+style = "warn"
+pedantic = "warn"
+nursery = "warn"
