@@ -78,7 +78,6 @@ fn newton_method<F: Fn(f64) -> f64>(f: F, x0: f64, iterations: usize) -> f64 {
 mod tests {
 
     use approx::assert_abs_diff_eq;
-    use roots::{find_roots_linear, Roots};
 
     use super::{
         newton_method_with_derivative, solve_cubic, solve_linear, solve_quadratic, solve_quartic,
@@ -88,25 +87,25 @@ mod tests {
     proptest! {
         #[test]
         fn test_linear(
-            a in -1.0..1.0_f64,
-            b in -1.0..1.0_f64,
+            a in -5000.0..5000.0_f64,
+            b in -5000.0..5000.0_f64,
         ) {
             _test_linear(a,b);
         }
         #[test]
         fn test_quadratic(
-            a in -5.0..5.0_f64,
-            b in -5.0..5.0_f64,
-            c in -5.0..5.0_f64,
+            a in -5000.0..5000.0_f64,
+            b in -5000.0..5000.0_f64,
+            c in -5000.0..5000.0_f64,
         ) {
             _test_quadratic(a,b,c);
         }
         #[test]
         fn test_cubic(
-            a in -5.0..5.0_f64,
-            b in -5.0..5.0_f64,
-            c in -5.0..5.0_f64,
-            d in -5.0..5.0_f64,
+            a in -5000.0..5000.0_f64,
+            b in -5000.0..5000.0_f64,
+            c in -5000.0..5000.0_f64,
+            d in -5000.0..5000.0_f64,
         ) {
             _test_cubic(a,b,c,d);
         }
@@ -130,7 +129,7 @@ mod tests {
         println!("a={a} b={b} solutions = {solutions:?}");
 
         for x in solutions {
-            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
+            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-7);
         }
     }
     #[allow(clippy::many_single_char_names)]
@@ -143,7 +142,7 @@ mod tests {
         };
         println!("a={a} b={b},c={c} solutions = {solutions:?}");
         for x in solutions {
-            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
+            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-7);
         }
     }
 
@@ -156,7 +155,7 @@ mod tests {
             c.mul_add(x, a.mul_add(x3, b * x2)) + d
         };
         for x in solutions {
-            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
+            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-7);
         }
     }
     #[allow(clippy::many_single_char_names)]
@@ -169,7 +168,7 @@ mod tests {
             d.mul_add(x, c.mul_add(x2, a.mul_add(x4, b * x3))) + e
         };
         for x in solutions {
-            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
+            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-7);
         }
     }
     #[test]
