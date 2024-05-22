@@ -74,6 +74,7 @@ dependencies = [
  "glam",
  "num-complex",
  "proptest",
+ "roots",
 ]
 
 [[package]]
@@ -215,6 +216,12 @@ name = "regex-syntax"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
+
+[[package]]
+name = "roots"
+version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "082f11ffa03bbef6c2c6ea6bea1acafaade2fd9050ae0234ab44a2153742b058"
 
 [[package]]
 name = "rustix"

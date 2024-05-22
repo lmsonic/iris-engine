@@ -7,6 +7,7 @@ edition = "2021"
 glam = { version = "0.27.0", features = ["approx", "glam-assert"] }
 num-complex = "0.4"
 approx = "0.5.1"
+roots = "0.0.8"
 [dev-dependencies]
 proptest = "1.4.0"
 [lints]
