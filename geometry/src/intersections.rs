@@ -3,7 +3,7 @@ use glam::{Mat2, Vec2, Vec3};
 use crate::{
     line::Line,
     plane::Plane,
-    root_finding::{solve_quadratic, solve_quartic, QuadraticSolution, QuarticSolution},
+    root_finding::{solve_quadratic, solve_quartic},
     shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Torus, Triangle},
 };
 
@@ -120,14 +120,11 @@ impl Ray {
         let b = 2.0 * self.direction.dot(delta);
         let c = delta.length_squared() - sphere.radius * sphere.radius;
         let solutions = solve_quadratic(a, b, c);
-        let t = match solutions {
-            QuadraticSolution::OneReal(t) | QuadraticSolution::TwoReal(t, _) => t,
-            QuadraticSolution::TwoComplex(_, _) => return None,
-        };
+        let t = solutions.into_iter().min_by(|a, b| a.total_cmp(b))?;
         if t <= 0.0 {
             return None;
         }
-        Some(self.point(t))
+        Some(self.point(t as f32))
     }
     #[must_use]
     #[allow(clippy::similar_names, clippy::many_single_char_names)]
@@ -155,15 +152,13 @@ impl Ray {
         let b = 2.0 * (sx * vx + m2 * sy * vy + n2 * sz * vz);
         let c = sx2 + m2 * sy2 + n2 * sz2;
 
-        let solution = solve_quadratic(a, b, c);
-        let t = match solution {
-            QuadraticSolution::OneReal(t) | QuadraticSolution::TwoReal(t, _) => t,
-            QuadraticSolution::TwoComplex(_, _) => return None,
-        };
-        if t <= 0.0 {
-            return None;
-        }
-        Some(self.point(t))
+        let solutions = solve_quadratic(a, b, c);
+        let t = solutions
+            .into_iter()
+            .filter(|x| *x > 0.0)
+            .min_by(f64::total_cmp)?;
+
+        Some(self.point(t as f32))
     }
 
     #[must_use]
@@ -186,19 +181,16 @@ impl Ray {
         let a = vx2 + m2 * vy2;
         let b = 2.0 * (sx * vx + m2 * sx * vy);
         let c = sx2 + m2 * sy2 - r * r;
-        let solution = solve_quadratic(a, b, c);
-        let t = match solution {
-            QuadraticSolution::OneReal(t) | QuadraticSolution::TwoReal(t, _) => t,
-            QuadraticSolution::TwoComplex(_, _) => return None,
-        };
-        if t <= 0.0 {
-            return None;
-        }
-        let point = self.point(t);
+        let solutions = solve_quadratic(a, b, c);
+        let t = solutions
+            .into_iter()
+            .filter(|x| *x > 0.0)
+            .min_by(f64::total_cmp)?;
+        let point = self.point(t as f32);
         if point.z < 0.0 || point.z > cylinder.height {
             return None;
         }
-        Some(self.point(t))
+        Some(point)
     }
 
     #[must_use]
@@ -235,33 +227,11 @@ impl Ray {
             + sz4
             + r_sqr_diff * r_sqr_diff
             + 2.0 * (sx2 * sy2 + sz2 * r_sqr_diff + (sx2 + sy2) * (sz2 - r1_sqr - r2_sqr));
-        let solution = solve_quartic(a, b, c, d, e);
-        let t = match solution {
-            QuarticSolution::FourReal(t1, t2, t3, t4) => [t1, t2, t3, t4]
-                .into_iter()
-                .filter(|t| *t >= 0.0)
-                .min_by(f32::total_cmp),
-            QuarticSolution::ThreeReal(t1, t2, t3) => [t1, t2, t3]
-                .into_iter()
-                .filter(|t| *t >= 0.0)
-                .min_by(f32::total_cmp),
-            QuarticSolution::TwoRealTwoComplex(t1, t2, _, _) => [t1, t2]
-                .into_iter()
-                .filter(|t| *t >= 0.0)
-                .min_by(f32::total_cmp),
-            QuarticSolution::TwoReal(t1, t2) => [t1, t2]
-                .into_iter()
-                .filter(|t| *t >= 0.0)
-                .min_by(f32::total_cmp),
-            QuarticSolution::OneRealTwoComplex(t, _, _) => {
-                if t > 0.0 {
-                    Some(t)
-                } else {
-                    None
-                }
-            }
-            QuarticSolution::FourComplex(_, _, _, _) => None,
-        };
-        t.map(|t| self.point(t))
+        let solutions = solve_quartic(a, b, c, d, e);
+        let t = solutions
+            .into_iter()
+            .filter(|x| *x > 0.0)
+            .min_by(f64::total_cmp)?;
+        Some(self.point(t as f32))
     }
 }
