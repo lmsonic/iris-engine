@@ -114,7 +114,6 @@ mod tests {
         let solutions = solve_linear(a, b);
 
         let f = |x: f64| a.mul_add(x, b);
-        println!("a={a} b={b} solutions = {solutions:?}");
 
         for x in solutions {
             assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
@@ -128,7 +127,6 @@ mod tests {
             let x2 = x * x;
             a.mul_add(x2, b * x) + c
         };
-        println!("a={a} b={b},c={c} solutions = {solutions:?}");
         for x in solutions {
             assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-5);
         }

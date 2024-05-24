@@ -9,8 +9,7 @@ pub struct Line {
 
 impl Line {
     #[must_use]
-    #[allow(clippy::self_named_constructors)]
-    pub const fn line(start: Vec3, direction: Vec3) -> Self {
+    pub const fn new(start: Vec3, direction: Vec3) -> Self {
         Self {
             start,
             direction,
@@ -39,10 +38,13 @@ impl Line {
     }
 
     #[must_use]
-    pub fn closest_to_point_on_line(&self, point: Vec3) -> Vec3 {
-        let delta = point - self.start;
-        let t = delta.project_onto(self.direction).length();
+    pub fn closest_point_to(&self, point: Vec3) -> Vec3 {
+        let t = self.closest_t_to(point);
         self.point(t)
+    }
+    #[must_use]
+    pub fn closest_t_to(&self, point: Vec3) -> f32 {
+        (point - self.start).dot(self.direction) / self.direction.length_squared()
     }
 
     #[must_use]
@@ -68,5 +70,72 @@ impl Line {
 
             p1.distance(p2)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::RangeInclusive;
+
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
+    use glam::Vec3;
+    use proptest::{prop_compose, proptest, strategy::Strategy};
+
+    use super::Line;
+    prop_compose! {
+        fn any_vec3(range:RangeInclusive<f32>)
+                    (x in range.clone(),y in range.clone(),z in range)
+                    -> Vec3 {
+            Vec3::new(x, y, z)
+        }
+    }
+    prop_compose! {
+        fn any_normal(range:RangeInclusive<f32>)
+                    (n in any_vec3(range).prop_filter("normal needs to be able to be normalized",
+                    |n|n.try_normalize().is_some()))
+                    -> Vec3 {
+            n
+        }
+    }
+
+    prop_compose! {
+        fn any_line(range:RangeInclusive<f32>)
+                    (start in any_vec3(range.clone()),
+                        direction in any_normal(range))
+                    -> Line {
+
+            Line::new(start,direction)
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_closest_point(line in any_line(-100.0..=100.0),point in any_vec3(-100.0..=100.0)){
+            _test_closest_point(line, point);
+        }
+        #[test]
+        fn test_distance_to_point(line in any_line(-100.0..=100.0),point in any_vec3(-100.0..=100.0)){
+            _test_distance_to_point(line, point);
+        }
+    }
+
+    fn _test_closest_point(line: Line, point: Vec3) {
+        // Tests if it is a local minumum
+        let closest_t = line.closest_t_to(point);
+        let distance_to_closest = (line.point(closest_t)).distance(point);
+        let distance_to_before = (line.point(closest_t - 0.1)).distance(point);
+        let distance_to_after = (line.point(closest_t + 0.1)).distance(point);
+        assert!(distance_to_closest < distance_to_before);
+        assert!(distance_to_closest < distance_to_after);
+    }
+    fn _test_distance_to_point(line: Line, point: Vec3) {
+        // Tests if it is a local minumum
+        let closest_point = line.closest_point_to(point);
+
+        assert_relative_eq!(
+            closest_point.distance(point),
+            line.distance_to_point(point),
+            max_relative = 0.99
+        );
     }
 }
