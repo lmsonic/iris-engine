@@ -1,0 +1,14 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 17156bc4da136f7fc0223d7c27e7b9835bef027045641c08219418683522a495 # shrinks to point = Vec3(0.0, -573.58374, 324.51685), normal = Vec3(0.0, -985.61993, 920.07104)
+cc bb00cb8723cf2e9c125a56150915d81a6aa53cd2ed15f678570f5b2e94065021 # shrinks to p1 = Plane { normal: Vec3(NaN, NaN, NaN), distance: NaN }, p2 = Plane { normal: Vec3(NaN, NaN, NaN), distance: NaN }
+cc 2834fc4b04b2b5b866db1b2ee39fef8ee58f967dc5097f44a79d437e2ffd8c3b # shrinks to p1 = Plane { normal: Vec3(0.0, 0.9444066, -0.3287796), distance: 0.0 }, p2 = Plane { normal: Vec3(0.0, -0.78400666, 0.6207524), distance: -6.764445 }, p3 = Plane { normal: Vec3(1.0, 0.0, 0.0), distance: 0.0 }
+cc 0867d1cbb00fbdb46a49ee6cf1ab88ee66573f31cfbd6c588b7f941164c7f83f # shrinks to point = Vec3(865.8879, 842.68506, -967.61206), normal = Vec3(-757.2969, -864.8832, 974.2919)
+cc 563dccfd5f6190ececc06ac58f41923fe4e00c6137643cbe26693783ae245425 # shrinks to p1 = Plane { normal: Vec3(0.7580548, 0.0, 0.652191), distance: -0.0 }, p2 = Plane { normal: Vec3(0.3738892, -0.7819392, -0.49877638), distance: -0.0 }, p3 = Plane { normal: Vec3(0.5511394, -0.76794195, -0.3263593), distance: 220.03831 }
+cc 3bccba5c8b98e08897fa7fb8d3befddd2de549c09726fdb06b6c5f153c5b4972 # shrinks to p1 = Plane { normal: Vec3(0.7901598, -0.60605115, -0.091375716), distance: -177.47087 }, p2 = Plane { normal: Vec3(-0.7633932, 0.6381546, 0.099947035), distance: -541.23035 }
+cc 2797bd29759365be68fb62489a8c82ba317359e8048698e14a4e1a1b37939e54 # shrinks to p1 = Plane { normal: Vec3(-0.60085905, 0.3967674, -0.6939339), distance: -0.0 }, p2 = Plane { normal: Vec3(-0.7315894, 0.03536541, -0.6808276), distance: -0.0 }, p3 = Plane { normal: Vec3(0.75677276, 0.26152045, 0.5990844), distance: -574.8159 }
+cc 93c5607c8b52058db4ef46a2816247c10982ce15662e41340fe8a63f286c598d # shrinks to p1 = Plane { normal: Vec3(0.33159056, 0.35056788, -0.87587094), distance: -0.0 }, p2 = Plane { normal: Vec3(-0.47220767, -0.03415357, 0.88082546), distance: -746.0983 }, p3 = Plane { normal: Vec3(0.5591107, -0.29904565, -0.7732831), distance: 135.52156 }

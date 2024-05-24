@@ -4,12 +4,26 @@ use glam::{Mat2, Vec2, Vec3};
 pub struct Line {
     pub start: Vec3,
     pub direction: Vec3,
+    pub is_ray: bool,
 }
 
 impl Line {
     #[must_use]
-    pub const fn new(start: Vec3, direction: Vec3) -> Self {
-        Self { start, direction }
+    #[allow(clippy::self_named_constructors)]
+    pub const fn line(start: Vec3, direction: Vec3) -> Self {
+        Self {
+            start,
+            direction,
+            is_ray: false,
+        }
+    }
+    #[must_use]
+    pub const fn ray(start: Vec3, direction: Vec3) -> Self {
+        Self {
+            start,
+            direction,
+            is_ray: true,
+        }
     }
     #[must_use]
     pub fn point(&self, t: f32) -> Vec3 {

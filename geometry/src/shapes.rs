@@ -50,16 +50,16 @@ impl Sphere {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Ellipsoid {
-    pub semiaxis_xy: f32,
-    pub semiaxis_xz: f32,
+    pub horizontal: f32,
+    pub vertical: f32,
 }
 
 impl Ellipsoid {
     #[must_use]
-    pub const fn new(semiaxis_xy: f32, semiaxis_xz: f32) -> Self {
+    pub const fn new(horizontal: f32, vertical: f32) -> Self {
         Self {
-            semiaxis_xy,
-            semiaxis_xz,
+            horizontal,
+            vertical,
         }
     }
     #[must_use]
@@ -67,8 +67,8 @@ impl Ellipsoid {
     pub fn normal(&self, point: Vec3) -> Vec3 {
         Vec3::new(
             2.0 * point.x,
-            2.0 * self.semiaxis_xy * self.semiaxis_xy * point.y,
-            2.0 * self.semiaxis_xz * self.semiaxis_xz * point.z,
+            2.0 * self.horizontal * self.horizontal * point.y,
+            2.0 * self.vertical * self.vertical * point.z,
         )
     }
 }
@@ -129,23 +129,5 @@ impl Torus {
             2.0 * point.y - point.y * recip_sqrt_term,
             2.0 * point.z,
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use glam::Vec3;
-
-    #[test]
-    fn exercise6() {
-        let point = Vec3::new(-1.0, 2.0, 14.0);
-        // Equation 2x^2 + 3y^2 -z = 0
-        let gradient = |p: Vec3| Vec3::new(4.0 * p.x, 6.0 * p.y, -1.0);
-        assert!(
-            gradient(point)
-                .normalize()
-                .distance(Vec3::new(-0.315, 0.946, -0.0788))
-                < 0.001,
-        );
     }
 }

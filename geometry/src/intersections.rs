@@ -143,8 +143,8 @@ impl Ray {
         let sy2 = sy * sy;
         let sz2 = sz * sz;
 
-        let m = ellipse.semiaxis_xy;
-        let n = ellipse.semiaxis_xz;
+        let m = ellipse.horizontal;
+        let n = ellipse.vertical;
         let m2 = m * m;
         let n2 = n * n;
 
@@ -156,7 +156,7 @@ impl Ray {
         let t = solutions
             .into_iter()
             .filter(|x| *x > 0.0)
-            .min_by(f64::total_cmp)?;
+            .min_by(f32::total_cmp)?;
 
         Some(self.point(t as f32))
     }
@@ -185,7 +185,7 @@ impl Ray {
         let t = solutions
             .into_iter()
             .filter(|x| *x > 0.0)
-            .min_by(f64::total_cmp)?;
+            .min_by(f32::total_cmp)?;
         let point = self.point(t as f32);
         if point.z < 0.0 || point.z > cylinder.height {
             return None;
@@ -231,7 +231,7 @@ impl Ray {
         let t = solutions
             .into_iter()
             .filter(|x| *x > 0.0)
-            .min_by(f64::total_cmp)?;
+            .min_by(f32::total_cmp)?;
         Some(self.point(t as f32))
     }
 }

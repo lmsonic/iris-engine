@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e75c171512c48eddc073847f0787e26c99a5be820fb5a85d169df163653ae6ec # shrinks to size = 0.1, aspect_ratio = 0.1, near = 0.1, far = 737.23254, projection = LeftHanded
+cc 75c41f73e1f1398a673a3c7927a249338227b1daa46969a53b3fda65c74f01b0 # shrinks to fov_y = 0.17453292, aspect_ratio = 0.1, near = 0.1, far = 46.885326, projection = OpenGL
+cc c990006ad8f365817b8baa13688a62932c02b1197c57de68562917a872758665 # shrinks to size = 0.1, aspect_ratio = 0.1, near = 0.1, far = 592.56696, projection = LeftHanded
