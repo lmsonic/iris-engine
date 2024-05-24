@@ -1,4 +1,4 @@
-use glam::{Mat2, Vec2, Vec3};
+use glam::Vec3;
 
 use crate::{
     line::Line,
@@ -16,12 +16,13 @@ impl Ray {
         let den = homogeneous.dot(v);
         if den == 0.0 {
             // Line parallel to plane
+
             None
         } else {
             let s = self.start.extend(1.0);
             let num = homogeneous.dot(s);
             let t = -(num / den);
-            if t > 0.0 {
+            if !self.is_ray || t > 0.0 {
                 let point = self.point(t);
                 Some(point)
             } else {
@@ -36,17 +37,7 @@ impl Ray {
 
         if let Some(point) = self.intersect_plane(triangle_plane) {
             // Calculate baricentric coordinates to check if it is inside the triangle
-            let r = point - triangle.v1;
-            let q1 = triangle.v2 - triangle.v1;
-            let q2 = triangle.v3 - triangle.v1;
-            let dot = q1.dot(q2);
-            let coefficients = Mat2::from_cols(
-                [q1.length_squared(), dot].into(),
-                [dot, q2.length_squared()].into(),
-            );
-            let constants = Vec2::new(r.dot(q1), r.dot(q2));
-            let weights = coefficients.inverse() * constants;
-            if weights.x + weights.y <= 1.0 {
+            if triangle.is_inside_triangle(point) {
                 return Some(point);
             }
         }
@@ -55,72 +46,48 @@ impl Ray {
     #[must_use]
     #[allow(clippy::similar_names, clippy::useless_let_if_seq)]
     pub fn intersect_cuboid(&self, cuboid: Cuboid) -> Option<Vec3> {
-        let min = cuboid.min;
-        let max = cuboid.max;
-        let invdir = self.direction.recip();
-
-        let mut tmin;
-        let mut tmax;
-        if invdir.x >= 0.0 {
-            tmin = min.x - self.start.x * invdir.x;
-            tmax = max.x - self.start.x * invdir.x;
-        } else {
-            tmin = max.x - self.start.x * invdir.x;
-            tmax = min.x - self.start.x * invdir.x;
+        let plane_x0 = Plane::new(Vec3::ZERO, Vec3::X);
+        let plane_xs = Plane::new(cuboid.size, Vec3::NEG_X);
+        let plane_y0 = Plane::new(Vec3::ZERO, Vec3::Y);
+        let plane_ys = Plane::new(cuboid.size, Vec3::NEG_Y);
+        let plane_z0 = Plane::new(Vec3::ZERO, Vec3::Z);
+        let plane_zs = Plane::new(cuboid.size, Vec3::NEG_Z);
+        let mut planes: Vec<Plane> = Vec::with_capacity(3);
+        if self.direction.x > 0.0 {
+            planes.push(plane_x0);
+        } else if self.direction.x < 0.0 {
+            planes.push(plane_xs);
         }
-        let tminy;
-        let tmaxz;
-        if invdir.y >= 0.0 {
-            tminy = min.y - self.start.y * invdir.y;
-            tmaxz = max.y - self.start.y * invdir.y;
-        } else {
-            tminy = max.y - self.start.y * invdir.y;
-            tmaxz = min.y - self.start.y * invdir.y;
-        };
-        if (tmin > tmaxz) || (tminy > tmax) {
-            return None;
+        if self.direction.y > 0.0 {
+            planes.push(plane_y0);
+        } else if self.direction.y < 0.0 {
+            planes.push(plane_ys);
         }
-
-        if tminy > tmin {
-            tmin = tminy;
+        if self.direction.z > 0.0 {
+            planes.push(plane_z0);
+        } else if self.direction.z < 0.0 {
+            planes.push(plane_zs);
         }
-        if tmaxz < tmax {
-            tmax = tmaxz;
-        }
-        let tminz;
-        let tmaxz;
-        if invdir.y >= 0.0 {
-            tminz = min.y - self.start.y * invdir.y;
-            tmaxz = max.y - self.start.y * invdir.y;
-        } else {
-            tminz = max.y - self.start.y * invdir.y;
-            tmaxz = min.y - self.start.y * invdir.y;
-        };
-
-        if (tmin > tmaxz) || (tminz > tmax) {
-            return None;
+        for plane in planes {
+            if let Some(point) = self.intersect_plane(plane) {
+                if cuboid.is_point_inside(point) {
+                    return Some(point);
+                }
+            }
         }
 
-        if tminz > tmin {
-            tmin = tminz;
-        }
-        if tmaxz < tmax {
-            tmax = tmaxz;
-        }
-        if tmin > 0.0 {
-            Some(self.point(tmin))
-        } else {
-            None
-        }
+        None
     }
     #[must_use]
     pub fn intersect_sphere(&self, sphere: Sphere) -> Option<Vec3> {
         let delta = self.start;
         let a = self.direction.length_squared(); // Should be 1.0
         let b = 2.0 * self.direction.dot(delta);
-        let c = delta.length_squared() - sphere.radius * sphere.radius;
+        let c = sphere
+            .radius
+            .mul_add(-sphere.radius, delta.length_squared());
         let solutions = solve_quadratic(a, b, c);
-        let t = solutions.into_iter().min_by(|a, b| a.total_cmp(b))?;
+        let t = solutions.into_iter().min_by(f32::total_cmp)?;
         if t <= 0.0 {
             return None;
         }
@@ -155,7 +122,7 @@ impl Ray {
         let solutions = solve_quadratic(a, b, c);
         let t = solutions
             .into_iter()
-            .filter(|x| *x > 0.0)
+            .filter(|x| !self.is_ray || *x > 0.0)
             .min_by(f32::total_cmp)?;
 
         Some(self.point(t as f32))
@@ -184,7 +151,7 @@ impl Ray {
         let solutions = solve_quadratic(a, b, c);
         let t = solutions
             .into_iter()
-            .filter(|x| *x > 0.0)
+            .filter(|x| !self.is_ray || *x > 0.0)
             .min_by(f32::total_cmp)?;
         let point = self.point(t as f32);
         if point.z < 0.0 || point.z > cylinder.height {
@@ -196,7 +163,7 @@ impl Ray {
     #[must_use]
     #[allow(clippy::similar_names, clippy::many_single_char_names)]
 
-    pub fn intersect_radius(&self, torus: Torus) -> Option<Vec3> {
+    pub fn intersect_torus(&self, torus: Torus) -> Option<Vec3> {
         let v2 = self.direction.length_squared();
         let v4 = v2 * v2;
         let vx2 = self.direction.x * self.direction.x;
@@ -230,8 +197,127 @@ impl Ray {
         let solutions = solve_quartic(a, b, c, d, e);
         let t = solutions
             .into_iter()
-            .filter(|x| *x > 0.0)
+            .filter(|x| !self.is_ray || *x > 0.0)
             .min_by(f32::total_cmp)?;
         Some(self.point(t as f32))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::RangeInclusive;
+
+    use approx::assert_abs_diff_eq;
+    use glam::Vec3;
+    use proptest::prop_compose;
+    use proptest::proptest;
+    use proptest::strategy::Strategy;
+
+    use crate::shapes::Cuboid;
+    use crate::shapes::Sphere;
+    use crate::shapes::Triangle;
+    use crate::{line::Line, plane::Plane};
+    prop_compose! {
+        fn any_vec3(range:RangeInclusive<f32>)
+                    (x in range.clone(),y in range.clone(),z in range)
+                    -> Vec3 {
+            Vec3::new(x, y, z)
+        }
+    }
+    prop_compose! {
+        fn any_normal(range:RangeInclusive<f32>)
+                    (n in any_vec3(range).prop_filter("normal needs to be able to be normalized",
+                    |n|n.try_normalize().is_some()))
+                    -> Vec3 {
+            n
+        }
+    }
+
+    prop_compose! {
+        fn any_line(range:RangeInclusive<f32>)
+                    (start in any_vec3(range.clone()),
+                    direction in any_normal(range))
+                    -> Line {
+
+            Line::new(start,direction)
+        }
+    }
+    prop_compose! {
+        fn any_plane(range:RangeInclusive<f32>)
+                    (point in any_vec3(range.clone()),
+                    normal in any_normal(range))
+                    -> Plane {
+
+            Plane::new(point,normal)
+        }
+    }
+    prop_compose! {
+        fn any_triangle(range:RangeInclusive<f32>)
+                    (v1 in any_vec3(range.clone()),
+                    v2 in any_vec3(range.clone()),
+                    v3 in any_vec3(range))
+                    -> Triangle {
+
+            Triangle::new(v1, v2, v3)
+        }
+    }
+    prop_compose! {
+        fn any_cuboid(range:RangeInclusive<f32>)
+                    (size in any_vec3(range))
+                    -> Cuboid {
+
+            Cuboid::new(size)
+        }
+    }
+    proptest! {
+        #[test]
+        fn test_intersect_plane(line in any_line(-100.0..=100.0), plane in any_plane(-100.0..=100.0)){
+            _test_intersect_plane(line, plane);
+        }
+        #[test]
+        fn test_intersect_triangle(line in any_line(-100.0..=100.0), triangle in any_triangle(-100.0..=100.0)){
+            _test_intersect_triangle(line, triangle);
+
+        }
+        #[test]
+        fn test_intersect_cuboid(line in any_line(-100.0..=100.0), cuboid in any_cuboid(-100.0..=100.0)){
+            _test_intersect_cuboid(line, cuboid);
+
+        }
+        #[test]
+        fn test_intersect_sphere(line in any_line(-100.0..=100.0), radius in 0.0..=100.0_f32){
+            _test_intersect_sphere(line, Sphere::new(radius));
+
+        }
+    }
+
+    fn _test_intersect_plane(line: Line, plane: Plane) {
+        let intersect = line.intersect_plane(plane);
+        assert!(intersect.is_some());
+        if let Some(point) = line.intersect_plane(plane) {
+            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 0.2);
+            assert_abs_diff_eq!(line.distance_to_point(point), 0.0, epsilon = 0.2);
+        }
+    }
+    fn _test_intersect_triangle(line: Line, triangle: Triangle) {
+        if let Some(point) = line.intersect_triangle(triangle) {
+            let plane = Plane::new(triangle.v1, triangle.normal());
+            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 0.2);
+            assert_abs_diff_eq!(line.distance_to_point(point), 0.0, epsilon = 0.2);
+            assert!(triangle.is_inside_triangle(point));
+        }
+    }
+    fn _test_intersect_cuboid(line: Line, cuboid: Cuboid) {
+        if let Some(point) = line.intersect_cuboid(cuboid) {
+            assert_abs_diff_eq!(line.distance_to_point(point), 0.0, epsilon = 1e-2);
+            assert!(cuboid.is_point_on_surface(point));
+            assert!(cuboid.is_point_inside(point));
+        }
+    }
+    fn _test_intersect_sphere(line: Line, sphere: Sphere) {
+        if let Some(point) = line.intersect_sphere(sphere) {
+            assert_abs_diff_eq!(line.distance_to_point(point), 0.0, epsilon = 1e-3);
+            assert_abs_diff_eq!(sphere.radius, point.length(), epsilon = 1e-3);
+        }
     }
 }

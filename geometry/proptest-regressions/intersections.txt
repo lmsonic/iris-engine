@@ -1,0 +1,14 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 8a1b59feef99124c03eb8d2a350e87149295677deaf5610cd795f0969b010d4a # shrinks to line = Line { start: Vec3(0.0, -23.634533, 0.0), direction: Vec3(0.0, -21.070145, 0.0), is_ray: false }, plane = Plane { normal: Vec3(0.0, -0.6187412, 0.7855949), distance: 59.627655 }
+cc 413af8b557cb999f6d9e94b63db7801011f4475940722120cb498bcae9c4768f # shrinks to line = Line { start: Vec3(0.0, 0.0, -99.36909), direction: Vec3(-0.1392151, -0.8083847, 0.57195574), is_ray: false }, plane = Plane { normal: Vec3(0.60090023, 0.38444635, 0.70079947), distance: -49.80301 }
+cc 6a1d75ef4bbe2e374365839527fafe0095b9c14d06f821fab464445bcd320bbb # shrinks to line = Line { start: Vec3(0.0, 0.0, 0.0), direction: Vec3(0.028900053, 0.67166823, -0.7402882), is_ray: false }, plane = Plane { normal: Vec3(0.91092265, 0.28721097, 0.2961922), distance: -89.695854 }
+cc 1b8ae186138d86c66ffb7a90975e2fa5cc0714ba15081938e454b9d6575189ae # shrinks to line = Line { start: Vec3(0.0, 0.0, 0.0), direction: Vec3(0.0, 0.0, 1.0), is_ray: false }, cuboid = Cuboid { min: Vec3(0.0, 0.0, 0.0), max: Vec3(0.0, 0.0, 0.0) }
+cc cf1eef155cbdb6dc3c48ef054d45378a85640be861c735d5070bd74a73939daf # shrinks to line = Line { start: Vec3(12.710121, 0.0, 1.2346653), direction: Vec3(-0.99582034, -0.04219966, -0.081000336), is_ray: false }, cuboid = Cuboid { size: Vec3(-13.227605, -63.02299, 99.981636) }
+cc 5dc77f6071c2575788c9ebb4a1213436ed7234389f8ab6b3404597f291b8e0db # shrinks to line = Line { start: Vec3(-4.2298126, 0.0, 0.0), direction: Vec3(-0.0087235775, -0.9245022, 0.38107672), is_ray: false }, cuboid = Cuboid { size: Vec3(86.49222, 0.0, 0.0) }
+cc 4bc230c48bbd162646e404691052422eeaca29e4fd9e5b6f53dfeb9267cd6db3 # shrinks to line = Line { start: Vec3(0.0, -99.69137, -21.48645), direction: Vec3(0.0, 1.0, 0.0), is_ray: false }, radius = -70.189575
+cc 47dc243576f157b46da4b0da13b2cef3a09a48cead32d6e31d465568cb003d62 # shrinks to line = Line { start: Vec3(60.581837, 72.40602, -99.80339), direction: Vec3(-0.49909693, -0.5396371, 0.67800736), is_ray: false }, radius = 45.010796

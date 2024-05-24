@@ -1,4 +1,5 @@
-use glam::Vec3;
+use approx::abs_diff_eq;
+use glam::{Mat2, Vec2, Vec3};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
@@ -16,18 +17,47 @@ impl Triangle {
     pub fn normal(&self) -> Vec3 {
         (self.v2 - self.v1).cross(self.v3 - self.v1)
     }
+    #[must_use]
+    pub fn is_inside_triangle(&self, point: Vec3) -> bool {
+        // Calculate baricentric coordinates to check if it is inside the triangle
+        let r = point - self.v1;
+        let q1 = self.v2 - self.v1;
+        let q2 = self.v3 - self.v1;
+        let dot = q1.dot(q2);
+        let coefficients = Mat2::from_cols(
+            [q1.length_squared(), dot].into(),
+            [dot, q2.length_squared()].into(),
+        );
+        let constants = Vec2::new(r.dot(q1), r.dot(q2));
+        let weights = coefficients.inverse() * constants;
+        weights.x >= 0.0 && weights.y >= 0.0 && weights.x + weights.y <= 1.0
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct Cuboid {
-    pub min: Vec3,
-    pub max: Vec3,
+    pub size: Vec3,
 }
 
 impl Cuboid {
     #[must_use]
-    pub const fn new(min: Vec3, max: Vec3) -> Self {
-        Self { min, max }
+    pub const fn new(size: Vec3) -> Self {
+        Self { size }
+    }
+    #[must_use]
+    pub fn is_point_on_surface(&self, point: Vec3) -> bool {
+        abs_diff_eq!(point.x, 0.0, epsilon = 1e-2)
+            || abs_diff_eq!(point.x, self.size.x, epsilon = 1e-2)
+            || abs_diff_eq!(point.y, 0.0, epsilon = 1e-2)
+            || abs_diff_eq!(point.y, self.size.y, epsilon = 1e-2)
+            || abs_diff_eq!(point.z, 0.0, epsilon = 1e-2)
+            || abs_diff_eq!(point.z, self.size.z, epsilon = 1e-2)
+    }
+    #[must_use]
+    pub fn is_point_inside(&self, point: Vec3) -> bool {
+        point.x >= 0.0 && point.x <= self.size.x
+            || point.y >= 0.0 && point.y <= self.size.y
+            || point.z >= 0.0 && point.z <= self.size.z
     }
 }
 

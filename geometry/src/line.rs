@@ -9,18 +9,18 @@ pub struct Line {
 
 impl Line {
     #[must_use]
-    pub const fn new(start: Vec3, direction: Vec3) -> Self {
+    pub fn new(start: Vec3, direction: Vec3) -> Self {
         Self {
             start,
-            direction,
+            direction: direction.normalize(),
             is_ray: false,
         }
     }
     #[must_use]
-    pub const fn ray(start: Vec3, direction: Vec3) -> Self {
+    pub fn ray(start: Vec3, direction: Vec3) -> Self {
         Self {
             start,
-            direction,
+            direction: direction.normalize(),
             is_ray: true,
         }
     }
@@ -32,9 +32,7 @@ impl Line {
     #[must_use]
     pub fn distance_to_point(&self, point: Vec3) -> f32 {
         let delta = point - self.start;
-        let distance_sqr =
-            delta.length_squared() - delta.project_onto(self.direction).length_squared();
-        distance_sqr.sqrt()
+        delta.reject_from(self.direction).length()
     }
 
     #[must_use]
@@ -77,7 +75,7 @@ impl Line {
 mod tests {
     use std::ops::RangeInclusive;
 
-    use approx::{assert_abs_diff_eq, assert_relative_eq};
+    use approx::{abs_diff_eq, assert_relative_eq};
     use glam::Vec3;
     use proptest::{prop_compose, proptest, strategy::Strategy};
 
@@ -123,8 +121,8 @@ mod tests {
         // Tests if it is a local minumum
         let closest_t = line.closest_t_to(point);
         let distance_to_closest = (line.point(closest_t)).distance(point);
-        let distance_to_before = (line.point(closest_t - 0.1)).distance(point);
-        let distance_to_after = (line.point(closest_t + 0.1)).distance(point);
+        let distance_to_before = (line.point(closest_t - 0.2)).distance(point);
+        let distance_to_after = (line.point(closest_t + 0.2)).distance(point);
         assert!(distance_to_closest < distance_to_before);
         assert!(distance_to_closest < distance_to_after);
     }

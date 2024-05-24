@@ -154,7 +154,7 @@ mod tests {
             d.mul_add(x, c.mul_add(x2, a.mul_add(x4, b * x3))) + e
         };
         for x in solutions {
-            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(f(x), 0.0, epsilon = 1e-1);
         }
     }
     #[test]

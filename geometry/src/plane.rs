@@ -73,7 +73,7 @@ impl Plane {
     }
     #[must_use]
     pub fn is_on_plane(&self, point: Vec3) -> bool {
-        abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1.0)
+        abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1e-4)
     }
 
     #[must_use]
@@ -82,7 +82,7 @@ impl Plane {
         let matrix = Mat3::from_cols(self.normal, p1.normal, p2.normal).transpose();
         let constants = -Vec3::new(self.distance, p1.distance, p2.distance);
         let determinant = matrix.determinant();
-        if determinant == 0.0 {
+        if abs_diff_eq!(determinant, 0.0, epsilon = 1e-3) {
             None
         } else {
             let result = matrix.inverse() * constants;
@@ -105,6 +105,8 @@ mod tests {
 
     use std::ops::RangeInclusive;
 
+    use approx::abs_diff_ne;
+    use approx::assert_abs_diff_eq;
     use glam::Vec3;
     use proptest::prop_assume;
     use proptest::prop_compose;
@@ -146,6 +148,7 @@ mod tests {
 
         #[test]
         fn test_intersect_three_planes(p1 in any_plane(-100.0..=1000.0), p2 in any_plane(-100.0..=1000.0), p3 in any_plane(-100.0..=1000.0)){
+
             _test_intersect_three_planes(p1,p2,p3);
         }
         #[test]
@@ -157,23 +160,23 @@ mod tests {
     fn _test_distance_to_point(point: Vec3, normal: Vec3) {
         let plane = Plane::new(point, normal);
 
-        assert!(plane.is_on_plane(point));
+        assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 1e-3);
     }
 
     fn _test_intersect_three_planes(p1: Plane, p2: Plane, p3: Plane) {
         if let Some(point) = p1.intersection_with_planes(p2, p3) {
-            assert!(p1.is_on_plane(point));
-            assert!(p2.is_on_plane(point));
-            assert!(p3.is_on_plane(point));
+            assert_abs_diff_eq!(p1.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p3.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
         }
     }
     fn _test_intersect_two_planes(p1: Plane, p2: Plane) {
         if let Some(line) = p1.intersection_with_plane(p2) {
             let end = line.start + line.direction;
-            assert!(p1.is_on_plane(line.start));
-            assert!(p1.is_on_plane(end));
-            assert!(p2.is_on_plane(line.start));
-            assert!(p2.is_on_plane(end));
+            assert_abs_diff_eq!(p1.signed_distance_to_point(line.start), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(p1.signed_distance_to_point(end), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(p2.signed_distance_to_point(line.start), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(p2.signed_distance_to_point(end), 0.0, epsilon = 1e-2);
         }
     }
 }
