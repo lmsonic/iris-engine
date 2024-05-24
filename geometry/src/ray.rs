@@ -115,7 +115,6 @@ mod tests {
         let distance_to_closest = (ray.point(closest_t)).distance(point);
         let distance_to_before = (ray.point(closest_t - 0.1)).distance(point);
         let distance_to_after = (ray.point(closest_t + 0.1)).distance(point);
-        println!("{distance_to_closest} {distance_to_before}");
         assert!(distance_to_closest < distance_to_before + 0.01);
         assert!(distance_to_closest < distance_to_after + 0.01);
     }

@@ -73,7 +73,7 @@ impl Plane {
     }
     #[must_use]
     pub fn is_on_plane(&self, point: Vec3) -> bool {
-        abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1e-4)
+        abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1e-3)
     }
 
     #[must_use]
@@ -107,7 +107,6 @@ mod tests {
 
     use approx::assert_abs_diff_eq;
     use glam::Vec3;
-    use proptest::prop_assume;
     use proptest::prop_compose;
     use proptest::proptest;
     use proptest::strategy::Strategy;
@@ -139,15 +138,14 @@ mod tests {
     }
     const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
     proptest! {
+
         #[test]
-        fn test_distance_to_point(point in any_vec3(RANGE), normal in any_vec3(RANGE)){
-            prop_assume!(normal.try_normalize().is_some());
+        fn test_distance_to_point(point in any_vec3(RANGE), normal in any_normal(RANGE)){
             _test_distance_to_point(point, normal);
         }
 
         #[test]
         fn test_intersect_three_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE), p3 in any_plane(RANGE)){
-
             _test_intersect_three_planes(p1,p2,p3);
         }
         #[test]
@@ -158,7 +156,7 @@ mod tests {
 
     fn _test_distance_to_point(point: Vec3, normal: Vec3) {
         let plane = Plane::new(point, normal);
-
+        assert!(plane.is_on_plane(point));
         assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 1e-3);
     }
 

@@ -80,25 +80,21 @@ impl Sphere {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Ellipsoid {
-    pub horizontal: f32,
-    pub vertical: f32,
+    pub radius: Vec3,
 }
 
 impl Ellipsoid {
     #[must_use]
-    pub const fn new(horizontal: f32, vertical: f32) -> Self {
-        Self {
-            horizontal,
-            vertical,
-        }
+    pub const fn new(radius: Vec3) -> Self {
+        Self { radius }
     }
     #[must_use]
     // Assuming point is on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
         Vec3::new(
-            2.0 * point.x,
-            2.0 * self.horizontal * self.horizontal * point.y,
-            2.0 * self.vertical * self.vertical * point.z,
+            2.0 * point.x * (self.radius.x * self.radius.x),
+            2.0 * point.y * (self.radius.y * self.radius.y),
+            2.0 * point.z * (self.radius.z * self.radius.z),
         )
     }
 }

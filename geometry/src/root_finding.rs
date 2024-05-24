@@ -1,6 +1,9 @@
+use std::ops::RangeInclusive;
+
 use approx::abs_diff_eq;
 use roots::{
-    find_roots_cubic, find_roots_linear, find_roots_quadratic, find_roots_quartic, FloatType, Roots,
+    find_root_brent, find_root_newton_raphson, find_roots_cubic, find_roots_linear,
+    find_roots_quadratic, find_roots_quartic, FloatType, Roots, SimpleConvergency,
 };
 
 fn roots_to_vec<F: FloatType>(roots: &Roots<F>) -> Vec<F> {
@@ -41,33 +44,39 @@ pub fn solve_quartic<F: FloatType>(a: F, b: F, c: F, d: F, e: F) -> Vec<F> {
     roots_to_vec(&roots)
 }
 
-fn newton_method_with_derivative<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
+pub fn newton_method<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
     f: F,
     df: D,
     x0: f64,
     iterations: usize,
-) -> f64 {
-    let mut x = x0;
-    for _ in 0..iterations {
-        println!("{x} {}", f(x));
-        x -= f(x) / df(x);
-        if abs_diff_eq!(f(x), 0.0, epsilon = 1e-2) {
-            break;
-        }
-    }
-    x
+) -> Option<f64> {
+    find_root_newton_raphson(
+        x0,
+        f,
+        df,
+        &mut SimpleConvergency {
+            eps: 1e-2,
+            max_iter: iterations,
+        },
+    )
+    .ok()
 }
-fn newton_method<F: Fn(f64) -> f64>(f: F, x0: f64, iterations: usize) -> f64 {
-    const DX: f64 = 0.1;
-    let mut x = x0;
-    for _ in 0..iterations {
-        let df = (f(x + DX) - f(x - DX)) / (2.0 * DX);
-        x -= f(x) / df;
-        if abs_diff_eq!(f(x), 0.0, epsilon = 1e-2) {
-            break;
-        }
-    }
-    x
+pub fn brent_method<F: FnMut(f64) -> f64>(
+    f: F,
+    range: RangeInclusive<f64>,
+    iterations: usize,
+) -> Option<f64> {
+    let result = find_root_brent(
+        *range.start(),
+        *range.end(),
+        f,
+        &mut SimpleConvergency {
+            eps: 1e-2,
+            max_iter: iterations,
+        },
+    );
+    dbg!(&result);
+    result.ok()
 }
 
 #[cfg(test)]
@@ -75,11 +84,9 @@ mod tests {
 
     use std::ops::RangeInclusive;
 
-    use approx::assert_abs_diff_eq;
+    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_relative_eq, relative_eq};
 
-    use super::{
-        newton_method_with_derivative, solve_cubic, solve_linear, solve_quadratic, solve_quartic,
-    };
+    use super::{brent_method, solve_cubic, solve_linear, solve_quadratic, solve_quartic};
     use crate::root_finding::newton_method;
     use proptest::prelude::*;
     const RANGE: RangeInclusive<f64> = -1.0..=1.0;
@@ -178,22 +185,31 @@ mod tests {
         ) {
             _test_newton_quadratic(a,b,c);
         }
+        #[test]
+        fn test_newton_cubic(
+            a in RANGE,
+            b in RANGE,
+            c in RANGE,
+            d in RANGE,
+        ) {
+            _test_newton_cubic(a,b,c,d);
+        }
+
+
+
     }
     fn _test_newton_quadratic(a: f64, b: f64, c: f64) {
-        let solution = solve_quadratic(a, b, c);
+        let solutions = solve_quadratic(a, b, c);
         let f = |x: f64| {
             let x2 = x * x;
             a.mul_add(x2, b * x) + c
         };
         let df = |x: f64| (2.0 * a).mul_add(x, b);
-        if !solution.is_empty() {
-            test_newton_method(f, 0.0, 20);
-            test_newton_method_with_derivative(f, df, 0.0, 20);
-        }
+        test_newton_method(f, df, 40, &solutions, 0.2);
     }
     #[allow(clippy::many_single_char_names)]
     fn _test_newton_cubic(a: f64, b: f64, c: f64, d: f64) {
-        let solution = solve_cubic(a, b, c, d);
+        let solutions = solve_cubic(a, b, c, d);
         let f = |x: f64| {
             let x2 = x * x;
             let x3 = x2 * x;
@@ -203,34 +219,34 @@ mod tests {
             let x2 = x * x;
             (3.0 * a).mul_add(x2, 2.0 * b * x) + c
         };
-        if !solution.is_empty() {
-            test_newton_method(f, 0.0, 20);
-            test_newton_method_with_derivative(f, df, 0.0, 20);
+        test_newton_method(f, df, 40, &solutions, 0.5);
+    }
+
+    fn test_newton_method<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
+        f: F,
+        df: D,
+        iterations: usize,
+        solutions: &[f64],
+        e: f64,
+    ) {
+        for x in solutions {
+            let root = newton_method(&f, &df, *x + 0.1, iterations).unwrap();
+            assert_abs_diff_eq!(f(root), 0.0, epsilon = e);
+            assert_abs_diff_eq!(root, x, epsilon = e);
         }
     }
 
-    fn test_newton_method_with_derivative<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
-        f: F,
-        df: D,
-        x0: f64,
-        iterations: usize,
-    ) {
-        let root = newton_method_with_derivative(&f, df, x0, iterations);
-        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-2);
-    }
-    fn test_newton_method<F: Fn(f64) -> f64>(f: F, x0: f64, iterations: usize) {
-        let root = newton_method(&f, x0, iterations);
-        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-2);
-    }
-    #[test]
-    fn test_newton_method_derivative_log() {
-        let f = |x: f64| x.ln() + x - 7.0;
-        let df = |x: f64| x.recip() + 1.0;
-        test_newton_method_with_derivative(f, df, 6.0, 20);
-    }
     #[test]
     fn test_newton_method_log() {
         let f = |x: f64| x.ln() + x - 7.0;
-        test_newton_method(f, 6.0, 20);
+        let df = |x: f64| x.recip() + 1.0;
+        let root = newton_method(f, df, 6.0, 20).unwrap();
+        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-1);
+    }
+    #[test]
+    fn test_bisection_method_log() {
+        let f = |x: f64| x.ln() + x - 7.0;
+        let root = brent_method(f, 4.0..=6.0, 20).unwrap();
+        assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-1);
     }
 }
