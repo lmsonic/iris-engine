@@ -1,7 +1,7 @@
 use approx::{abs_diff_eq, AbsDiffEq, RelativeEq};
 use glam::{Mat3, Vec3, Vec4};
 
-use crate::line::Line;
+use crate::line::Ray;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Plane {
@@ -90,14 +90,14 @@ impl Plane {
         }
     }
     #[must_use]
-    pub fn intersection_with_plane(&self, other: Self) -> Option<Line> {
+    pub fn intersection_with_plane(&self, other: Self) -> Option<Ray> {
         let direction = self.normal.cross(other.normal);
         let line_plane = Self {
             normal: direction.normalize(),
             distance: 0.0,
         };
         self.intersection_with_planes(other, line_plane)
-            .map(|point| Line::new(point, direction))
+            .map(|point| Ray::new(point, direction))
     }
 }
 #[cfg(test)]

@@ -1,29 +1,20 @@
 use glam::{Mat2, Vec2, Vec3};
 
 #[derive(Clone, Copy, Debug)]
-pub struct Line {
+pub struct Ray {
     pub start: Vec3,
     pub direction: Vec3,
-    pub is_ray: bool,
 }
 
-impl Line {
+impl Ray {
     #[must_use]
     pub fn new(start: Vec3, direction: Vec3) -> Self {
         Self {
             start,
             direction: direction.normalize(),
-            is_ray: false,
         }
     }
-    #[must_use]
-    pub fn ray(start: Vec3, direction: Vec3) -> Self {
-        Self {
-            start,
-            direction: direction.normalize(),
-            is_ray: true,
-        }
-    }
+
     #[must_use]
     pub fn point(&self, t: f32) -> Vec3 {
         self.start + t * self.direction
@@ -79,7 +70,7 @@ mod tests {
     use glam::Vec3;
     use proptest::{prop_compose, proptest, strategy::Strategy};
 
-    use super::Line;
+    use super::Ray;
     prop_compose! {
         fn any_vec3(range:RangeInclusive<f32>)
                     (x in range.clone(),y in range.clone(),z in range)
@@ -100,9 +91,9 @@ mod tests {
         fn any_line(range:RangeInclusive<f32>)
                     (start in any_vec3(range.clone()),
                         direction in any_normal(range))
-                    -> Line {
+                    -> Ray {
 
-            Line::new(start,direction)
+            Ray::new(start,direction)
         }
     }
 
@@ -117,7 +108,7 @@ mod tests {
         }
     }
 
-    fn _test_closest_point(line: Line, point: Vec3) {
+    fn _test_closest_point(line: Ray, point: Vec3) {
         // Tests if it is a local minumum
         let closest_t = line.closest_t_to(point);
         let distance_to_closest = (line.point(closest_t)).distance(point);
@@ -126,7 +117,7 @@ mod tests {
         assert!(distance_to_closest < distance_to_before);
         assert!(distance_to_closest < distance_to_after);
     }
-    fn _test_distance_to_point(line: Line, point: Vec3) {
+    fn _test_distance_to_point(line: Ray, point: Vec3) {
         // Tests if it is a local minumum
         let closest_point = line.closest_point_to(point);
 
