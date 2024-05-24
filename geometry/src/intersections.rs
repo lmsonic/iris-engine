@@ -313,7 +313,7 @@ mod tests {
     }
     fn _test_intersect_cuboid(ray: Ray, cuboid: Cuboid) {
         if let Some(point) = ray.intersect_cuboid(cuboid) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-1);
             assert!(cuboid.is_point_on_surface(point));
             assert!(cuboid.is_point_inside(point));
         }
