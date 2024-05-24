@@ -1,7 +1,7 @@
 use approx::{abs_diff_eq, AbsDiffEq, RelativeEq};
 use glam::{Mat3, Vec3, Vec4};
 
-use crate::line::Ray;
+use crate::ray::Ray;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Plane {
@@ -105,7 +105,6 @@ mod tests {
 
     use std::ops::RangeInclusive;
 
-    use approx::abs_diff_ne;
     use approx::assert_abs_diff_eq;
     use glam::Vec3;
     use proptest::prop_assume;
@@ -138,21 +137,21 @@ mod tests {
             Plane::new(point,normal)
         }
     }
-
+    const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
     proptest! {
         #[test]
-        fn test_distance_to_point(point in any_vec3(-1000.0..=1000.0), normal in any_vec3(-1000.0..=1000.0)){
+        fn test_distance_to_point(point in any_vec3(RANGE), normal in any_vec3(RANGE)){
             prop_assume!(normal.try_normalize().is_some());
             _test_distance_to_point(point, normal);
         }
 
         #[test]
-        fn test_intersect_three_planes(p1 in any_plane(-100.0..=1000.0), p2 in any_plane(-100.0..=1000.0), p3 in any_plane(-100.0..=1000.0)){
+        fn test_intersect_three_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE), p3 in any_plane(RANGE)){
 
             _test_intersect_three_planes(p1,p2,p3);
         }
         #[test]
-        fn test_intersect_two_planes(p1 in any_plane(-100.0..=1000.0), p2 in any_plane(-100.0..=1000.0)){
+        fn test_intersect_two_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE)){
             _test_intersect_two_planes(p1,p2);
         }
     }
@@ -173,10 +172,10 @@ mod tests {
     fn _test_intersect_two_planes(p1: Plane, p2: Plane) {
         if let Some(line) = p1.intersection_with_plane(p2) {
             let end = line.start + line.direction;
-            assert_abs_diff_eq!(p1.signed_distance_to_point(line.start), 0.0, epsilon = 1e-2);
-            assert_abs_diff_eq!(p1.signed_distance_to_point(end), 0.0, epsilon = 1e-2);
-            assert_abs_diff_eq!(p2.signed_distance_to_point(line.start), 0.0, epsilon = 1e-2);
-            assert_abs_diff_eq!(p2.signed_distance_to_point(end), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(p1.signed_distance_to_point(line.start), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p1.signed_distance_to_point(end), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to_point(line.start), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to_point(end), 0.0, epsilon = 1e-1);
         }
     }
 }

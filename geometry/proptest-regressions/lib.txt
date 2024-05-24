@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 3d1df3d6f96d28a9134b67393d98b8526b8612cd52e270952bc2a3382ee79c53 # shrinks to input = Vec3(0.0, 0.0, 98.820175), normal = Vec3(0.0, 0.0, -3.3662634)
+cc 1f37d5770452d9a6ea097971a4e163fbd0f834f568d35a8411d0ed6b14bfcdfb # shrinks to input = Vec3(0.18217024, -0.46853155, 0.8644607), normal = Vec3(-0.8354388, 0.0, 0.54958344)
+cc 2ad739f1086b8a7d03cfc0de561d1cd869cba385da66c705c885ac2d3c624215 # shrinks to input = Vec3(0.557012, 0.44510067, -0.70115834), normal = Vec3(-0.5423038, -0.4630591, 0.7010583)

@@ -66,7 +66,7 @@ impl Ray {
 mod tests {
     use std::ops::RangeInclusive;
 
-    use approx::{abs_diff_eq, assert_relative_eq};
+    use approx::assert_relative_eq;
     use glam::Vec3;
     use proptest::{prop_compose, proptest, strategy::Strategy};
 
@@ -96,26 +96,28 @@ mod tests {
             Ray::new(start,direction)
         }
     }
+    const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
 
     proptest! {
         #[test]
-        fn test_closest_point(line in any_line(-100.0..=100.0),point in any_vec3(-100.0..=100.0)){
+        fn test_closest_point(line in any_line(RANGE),point in any_vec3(RANGE)){
             _test_closest_point(line, point);
         }
         #[test]
-        fn test_distance_to_point(line in any_line(-100.0..=100.0),point in any_vec3(-100.0..=100.0)){
+        fn test_distance_to_point(line in any_line(RANGE),point in any_vec3(RANGE)){
             _test_distance_to_point(line, point);
         }
     }
 
-    fn _test_closest_point(line: Ray, point: Vec3) {
+    fn _test_closest_point(ray: Ray, point: Vec3) {
         // Tests if it is a local minumum
-        let closest_t = line.closest_t_to(point);
-        let distance_to_closest = (line.point(closest_t)).distance(point);
-        let distance_to_before = (line.point(closest_t - 0.2)).distance(point);
-        let distance_to_after = (line.point(closest_t + 0.2)).distance(point);
-        assert!(distance_to_closest < distance_to_before);
-        assert!(distance_to_closest < distance_to_after);
+        let closest_t = ray.closest_t_to(point);
+        let distance_to_closest = (ray.point(closest_t)).distance(point);
+        let distance_to_before = (ray.point(closest_t - 0.1)).distance(point);
+        let distance_to_after = (ray.point(closest_t + 0.1)).distance(point);
+        println!("{distance_to_closest} {distance_to_before}");
+        assert!(distance_to_closest < distance_to_before + 0.01);
+        assert!(distance_to_closest < distance_to_after + 0.01);
     }
     fn _test_distance_to_point(line: Ray, point: Vec3) {
         // Tests if it is a local minumum

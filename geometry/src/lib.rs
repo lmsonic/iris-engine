@@ -2,8 +2,8 @@ use glam::Vec3;
 
 pub mod frustum;
 pub mod intersections;
-pub mod line;
 pub mod plane;
+pub mod ray;
 pub mod root_finding;
 pub mod shapes;
 
@@ -19,13 +19,13 @@ pub fn refract(direction: Vec3, normal: Vec3, in_index: f32, out_index: f32) -> 
     let dot = normal.dot(direction);
     let ratio = in_index / out_index;
     let ratio2 = ratio * ratio;
-    (ratio * dot - (1.0 - (ratio2) * (1.0 - dot * dot)).sqrt()) * normal - ratio * direction
+    ratio.mul_add(dot, -(ratio2).mul_add(-dot.mul_add(-dot, 1.0), 1.0).sqrt()) * normal
+        - ratio * direction
 }
 
 #[cfg(test)]
 mod tests {
-    use std::f32::consts::PI;
-    use std::f32::consts::TAU;
+
     use std::ops::RangeInclusive;
 
     use approx::assert_abs_diff_eq;
@@ -62,6 +62,6 @@ mod tests {
         let output = reflect(input, normal);
         let angle1 = normal.angle_between(input);
         let angle2 = normal.angle_between(output);
-        assert_abs_diff_eq!(angle1, angle2, epsilon = 1e-1);
+        assert_abs_diff_eq!(angle1, angle2, epsilon = 1e-3);
     }
 }

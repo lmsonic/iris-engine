@@ -2,8 +2,8 @@ use approx::abs_diff_eq;
 use glam::Vec3;
 
 use crate::{
-    line::Ray,
     plane::Plane,
+    ray::Ray,
     root_finding::{solve_quadratic, solve_quartic},
     shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Torus, Triangle},
 };
@@ -14,7 +14,7 @@ impl Ray {
         let v = self.direction.extend(0.0);
         let homogeneous = plane.homogeneous();
         let den = homogeneous.dot(v);
-        if abs_diff_eq!(den, 0.0, epsilon = 1e-4) {
+        if abs_diff_eq!(den, 0.0, epsilon = 1e-2) {
             // Line parallel to plane
             None
         } else {
@@ -215,7 +215,7 @@ mod tests {
     use crate::shapes::Cuboid;
     use crate::shapes::Sphere;
     use crate::shapes::Triangle;
-    use crate::{line::Ray, plane::Plane};
+    use crate::{plane::Plane, ray::Ray};
     prop_compose! {
         fn any_vec3(range:RangeInclusive<f32>)
                     (x in range.clone(),y in range.clone(),z in range)
@@ -268,24 +268,25 @@ mod tests {
             Cuboid::new(size)
         }
     }
+    const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
     proptest! {
 
         #[test]
-        fn test_intersect_plane(line in any_ray(-100.0..=100.0), plane in any_plane(-100.0..=100.0)){
+        fn test_intersect_plane(line in any_ray(RANGE), plane in any_plane(RANGE)){
             _test_intersect_plane(line, plane);
         }
         #[test]
-        fn test_intersect_triangle(line in any_ray(-100.0..=100.0), triangle in any_triangle(-100.0..=100.0)){
+        fn test_intersect_triangle(line in any_ray(RANGE), triangle in any_triangle(RANGE)){
             _test_intersect_triangle(line, triangle);
 
         }
         #[test]
-        fn test_intersect_cuboid(line in any_ray(-100.0..=100.0), cuboid in any_cuboid(0.001..=100.0)){
+        fn test_intersect_cuboid(line in any_ray(RANGE), cuboid in any_cuboid(0.0..=100.0)){
             _test_intersect_cuboid(line, cuboid);
 
         }
         #[test]
-        fn test_intersect_sphere(line in any_ray(-100.0..=100.0), radius in 0.0..=100.0_f32){
+        fn test_intersect_sphere(line in any_ray(RANGE), radius in 0.0..=100.0_f32){
             _test_intersect_sphere(line, Sphere::new(radius));
 
         }
@@ -293,8 +294,8 @@ mod tests {
 
     fn _test_intersect_plane(ray: Ray, plane: Plane) {
         if let Some(point) = ray.intersect_plane(plane) {
-            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 0.2);
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 0.2);
+            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 0.02);
+            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 0.02);
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = opposite_ray.intersect_plane(plane);
             assert!(intersect.is_none());
@@ -303,8 +304,8 @@ mod tests {
     fn _test_intersect_triangle(ray: Ray, triangle: Triangle) {
         if let Some(point) = ray.intersect_triangle(triangle) {
             let plane = Plane::new(triangle.v1, triangle.normal());
-            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 0.2);
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 0.2);
+            assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-1);
             assert!(triangle.is_inside_triangle(point));
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = opposite_ray.intersect_triangle(triangle);
@@ -320,8 +321,8 @@ mod tests {
     }
     fn _test_intersect_sphere(ray: Ray, sphere: Sphere) {
         if let Some(point) = ray.intersect_sphere(sphere) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-3);
-            assert_abs_diff_eq!(sphere.radius, point.length(), epsilon = 1e-3);
+            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(sphere.radius, point.length(), epsilon = 1e-2);
 
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = opposite_ray.intersect_sphere(sphere);

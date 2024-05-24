@@ -1,5 +1,4 @@
 #![allow(clippy::module_name_repetitions)]
-use approx::{AbsDiffEq, RelativeEq};
 use glam::{Mat4, Vec3, Vec4};
 
 use crate::plane::Plane;
@@ -12,43 +11,6 @@ pub struct Frustum {
     pub right: Plane,
     pub bottom: Plane,
     pub top: Plane,
-}
-
-impl AbsDiffEq for Frustum {
-    type Epsilon = <Plane as approx::AbsDiffEq>::Epsilon;
-
-    fn default_epsilon() -> Self::Epsilon {
-        Plane::default_epsilon()
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.near.abs_diff_eq(&other.near, epsilon)
-            && self.far.abs_diff_eq(&other.far, 0.5)
-            && self.right.abs_diff_eq(&other.near, epsilon)
-            && self.left.abs_diff_eq(&other.far, 0.5)
-            && self.bottom.abs_diff_eq(&other.near, epsilon)
-            && self.top.abs_diff_eq(&other.far, 0.5)
-    }
-}
-
-impl RelativeEq for Frustum {
-    fn default_max_relative() -> Self::Epsilon {
-        Plane::default_max_relative()
-    }
-
-    fn relative_eq(
-        &self,
-        other: &Self,
-        epsilon: Self::Epsilon,
-        max_relative: Self::Epsilon,
-    ) -> bool {
-        self.near.relative_eq(&other.near, epsilon, max_relative)
-            && self.far.relative_eq(&other.far, epsilon, max_relative)
-            && self.right.relative_eq(&other.near, epsilon, max_relative)
-            && self.left.relative_eq(&other.far, epsilon, max_relative)
-            && self.bottom.relative_eq(&other.near, epsilon, max_relative)
-            && self.top.relative_eq(&other.far, epsilon, max_relative)
-    }
 }
 
 impl Frustum {
