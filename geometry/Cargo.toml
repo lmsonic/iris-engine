@@ -10,5 +10,12 @@ approx = "0.5.1"
 roots = "0.0.8"
 [dev-dependencies]
 proptest = "1.4.0"
+
+[profile.test.package.proptest]
+opt-level = 3
+
+[profile.test.package.rand_chacha]
+opt-level = 3
+
 [lints]
 workspace = true
