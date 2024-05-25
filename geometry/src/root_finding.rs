@@ -1,6 +1,5 @@
 use std::ops::RangeInclusive;
 
-use approx::abs_diff_eq;
 use roots::{
     find_root_brent, find_root_newton_raphson, find_roots_cubic, find_roots_linear,
     find_roots_quadratic, find_roots_quartic, FloatType, Roots, SimpleConvergency,
@@ -84,7 +83,7 @@ mod tests {
 
     use std::ops::RangeInclusive;
 
-    use approx::{abs_diff_eq, assert_abs_diff_eq, assert_relative_eq, relative_eq};
+    use approx::assert_abs_diff_eq;
 
     use super::{brent_method, solve_cubic, solve_linear, solve_quadratic, solve_quartic};
     use crate::root_finding::newton_method;

@@ -5,3 +5,8 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 72aa0cfb77d589ee48d2ea5042267c706f269c4b545ecde2d262ecf3861ba553 # shrinks to line = Ray { start: Vec3(0.0, 0.0, -387.77972), direction: Vec3(-0.25823495, -0.32320994, -0.91041195) }, point = Vec3(0.0, 974.80646, 40.71145)
+cc 3fa138d30a1d0bd00b02f5fb25f294400b57fb3d6c9cf374bb1d1be27623cb58 # shrinks to ray1 = Ray { start: Vec3(-570.91656, 711.8461, 223.08769), direction: Vec3(0.0, 0.0, 1.0) }, ray2 = Ray { start: Vec3(875.22955, 0.0, -223.12564), direction: Vec3(0.46576777, 0.4027531, 0.7879405) }
+cc 3b52d33095f0ef13ec1183b04a7cdde96b43e1fd312d790fae393ec7fa8abef6 # shrinks to ray1 = Ray { start: Vec3(0.0, 0.0, -955.1538), direction: Vec3(0.0, 0.0, -0.99999994) }, ray2 = Ray { start: Vec3(0.0, 0.0, 0.0), direction: Vec3(0.0, 1.0, 0.0) }
+cc b7edd1a4ba0215906b242a53b1972d0bf210eca103d799cd591a10362051f3e8 # shrinks to ray1 = Ray { start: Vec3(0.0, 0.0, -740.1778), direction: Vec3(0.0, -1.0, 0.0) }, ray2 = Ray { start: Vec3(-805.58704, 667.1771, -852.44794), direction: Vec3(-1.0, 0.0, 0.0) }
+cc 685ecaf093fb7305afa1e061bd03c187d89d7d9bb98caa7e11875c07e7b7fe70 # shrinks to ray1 = Ray { start: Vec3(0.0, 0.0, 0.0), direction: Vec3(-0.119904116, 0.6467404, 0.7532263) }, ray2 = Ray { start: Vec3(0.0, 0.0, 329.38565), direction: Vec3(0.0, 0.0, 1.0) }
+cc 3f9daa06930c37280ce018e28ad72d3aac2bb56408e8cbedac26ad82af3cee98 # shrinks to ray1 = Ray { start: Vec3(0.0, 295.30673, 0.0), direction: Vec3(-0.62846935, 0.411753, -0.65991354) }, ray2 = Ray { start: Vec3(0.0, 0.0, 0.0), direction: Vec3(0.38486138, -0.59377146, 0.70662373) }

@@ -1,5 +1,5 @@
-use approx::abs_diff_eq;
-use glam::{Mat2, Vec2, Vec3};
+use approx::{abs_diff_eq, assert_abs_diff_eq};
+use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
@@ -72,9 +72,18 @@ impl Sphere {
         Self { radius }
     }
     #[must_use]
-    // Assuming point is on surface
+    // Point must be on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
-        Vec3::new(2.0 * point.x, 2.0 * point.y, 2.0 * point.z)
+        assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
+        Self::gradient(point)
+    }
+    #[must_use]
+    pub(crate) fn equation(self, p: Vec3) -> f32 {
+        self.radius.mul_add(-self.radius, p.dot(p))
+    }
+    #[must_use]
+    pub(crate) fn gradient(p: Vec3) -> Vec3 {
+        2.0 * p * p
     }
 }
 
@@ -89,13 +98,18 @@ impl Ellipsoid {
         Self { radius }
     }
     #[must_use]
+    pub(crate) fn equation(self, p: Vec3) -> f32 {
+        (p * p).dot((self.radius * self.radius).recip()) - 1.0
+    }
+    #[must_use]
+    pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
+        2.0 * p * (self.radius * self.radius).recip()
+    }
+    #[must_use]
     // Assuming point is on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
-        Vec3::new(
-            2.0 * point.x * (self.radius.x * self.radius.x),
-            2.0 * point.y * (self.radius.y * self.radius.y),
-            2.0 * point.z * (self.radius.z * self.radius.z),
-        )
+        assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
+        Self::gradient(self, point)
     }
 }
 
@@ -115,45 +129,29 @@ impl Cylinder {
             height,
         }
     }
-    // Assuming point is on surface
     #[must_use]
-    pub fn normal(&self, point: Vec3) -> Vec3 {
-        Vec3::new(
-            2.0 * self.radius_y * point.x,
-            2.0 * self.radius_x * point.y,
-            if point.z <= 0.0 {
-                -1.0
-            } else if point.z > self.height {
-                1.0
-            } else {
-                0.0
-            },
-        )
+    pub(crate) fn equation(self, p: Vec3) -> f32 {
+        let p_xy = p.xy();
+        let radius_xy = Vec2::new(self.radius_x, self.radius_y);
+        (p_xy * p_xy).dot((radius_xy * radius_xy).recip()) - 1.0
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Torus {
-    pub inner_radius: f32,
-    pub outer_radius: f32,
-}
-
-impl Torus {
     #[must_use]
-    pub const fn new(inner_radius: f32, outer_radius: f32) -> Self {
-        Self {
-            inner_radius,
-            outer_radius,
-        }
+    pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
+        let p_xy = p.xy();
+        let radius_xy = Vec2::new(self.radius_x, self.radius_y);
+        let v_xy = 2.0 * (p_xy * radius_xy.recip());
+        v_xy.extend(if p.z <= 0.0 {
+            -1.0
+        } else if p.z >= self.height {
+            1.0
+        } else {
+            0.0
+        })
     }
     #[must_use]
     // Assuming point is on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
-        let recip_sqrt_term = 2.0 * self.inner_radius * point.x.hypot(point.y).recip();
-        Vec3::new(
-            2.0 * point.x - point.x * recip_sqrt_term,
-            2.0 * point.y - point.y * recip_sqrt_term,
-            2.0 * point.z,
-        )
+        assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
+        Self::gradient(self, point)
     }
 }

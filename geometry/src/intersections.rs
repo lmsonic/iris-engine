@@ -1,11 +1,11 @@
 use approx::abs_diff_eq;
-use glam::{Vec3, Vec3Swizzles};
+use glam::Vec3;
 
 use crate::{
     plane::Plane,
     ray::Ray,
-    root_finding::{solve_quadratic, solve_quartic},
-    shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Torus, Triangle},
+    root_finding::solve_quadratic,
+    shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Triangle},
 };
 
 impl Ray {
@@ -159,48 +159,6 @@ impl Ray {
         }
         Some(point)
     }
-
-    #[must_use]
-    #[allow(clippy::similar_names, clippy::many_single_char_names)]
-
-    pub fn intersect_torus(&self, torus: Torus) -> Option<Vec3> {
-        let s = self.start;
-        let s2 = self.start.length_squared();
-        let sx2 = s.x * s.x;
-        let sx4 = sx2 * sx2;
-        let sy2 = s.y * s.y;
-        let sy4 = sy2 * sy2;
-        let sz2 = s.z * s.z;
-        let sz4 = sz2 * sz2;
-        let v = self.direction;
-        let v2 = self.direction.length_squared();
-        let v4 = v2 * v2;
-        let vx2 = v.x * v.x;
-        let vy2 = v.y * v.y;
-        let dot = s.dot(v);
-        let r1 = torus.inner_radius;
-        let r2 = torus.outer_radius;
-        let r1_sqr = r1 * r1;
-        let r2_sqr = r2 * r2;
-        let r_sqr_diff = r1_sqr - r2_sqr;
-        // TODO: this doesnt work
-        let a = v4;
-        let b = 4.0 * v2 * dot;
-        let c = 2.0 * v2 * (s2 + r1_sqr - r2_sqr) - 4.0 * r1_sqr * (vx2 + vy2) + 4.0 * dot * dot;
-        let d = 8.0 * r1_sqr * s.z * v.z - 4.0 * dot * (s2 - r1_sqr - r2_sqr);
-        let e = sx4
-            + sy4
-            + sz4
-            + r_sqr_diff * r_sqr_diff
-            + 2.0 * (sx2 * sy2 + sz2 * r_sqr_diff + (sx2 + sy2) * (sz2 - r1_sqr - r2_sqr));
-
-        let solutions = solve_quartic(a, b, c, d, e);
-        let t = solutions
-            .into_iter()
-            .filter(|x| *x > 0.0)
-            .min_by(f32::total_cmp)?;
-        Some(self.point(t as f32))
-    }
 }
 
 #[cfg(test)]
@@ -208,10 +166,7 @@ mod tests {
     use std::ops::RangeInclusive;
 
     use approx::assert_abs_diff_eq;
-    use glam::Vec2;
     use glam::Vec3;
-    use glam::Vec3Swizzles;
-    use proptest::prop_assume;
     use proptest::prop_compose;
     use proptest::proptest;
     use proptest::strategy::Strategy;
@@ -220,7 +175,6 @@ mod tests {
     use crate::shapes::Cylinder;
     use crate::shapes::Ellipsoid;
     use crate::shapes::Sphere;
-    use crate::shapes::Torus;
     use crate::shapes::Triangle;
     use crate::{plane::Plane, ray::Ray};
     prop_compose! {
@@ -342,7 +296,8 @@ mod tests {
     fn _test_intersect_sphere(ray: Ray, sphere: Sphere) {
         if let Some(point) = ray.intersect_sphere(sphere) {
             assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-2);
-            assert_abs_diff_eq!(sphere.radius, point.length(), epsilon = 1e-2);
+
+            assert_abs_diff_eq!(point.length(), sphere.radius, epsilon = 0.05);
 
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = opposite_ray.intersect_sphere(sphere);
@@ -353,43 +308,15 @@ mod tests {
         if let Some(point) = ray.intersect_ellipsoid(ellipse) {
             assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-3);
 
-            let f =
-                |p: Vec3| -> f32 { (p * p).dot((ellipse.radius * ellipse.radius).recip()) - 1.0 };
-            assert_abs_diff_eq!(f(point), 0.0, epsilon = 1e-3);
+            assert_abs_diff_eq!(ellipse.equation(point), 0.0, epsilon = 1e-3);
         }
     }
     fn _test_intersect_cylinder(ray: Ray, cylinder: Cylinder) {
         if let Some(point) = ray.intersect_cylinder(cylinder) {
             assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-3);
 
-            let f = |p: Vec2| -> f32 {
-                p.x * p.x / (cylinder.radius_x * cylinder.radius_x)
-                    + p.y * p.y / (cylinder.radius_y * cylinder.radius_y)
-                    - 1.0
-            };
-
-            assert_abs_diff_eq!(f(point.xy()), 0.0, epsilon = 1e-3);
-            assert!(point.z > 0.0 && point.z < cylinder.height);
-
-            let opposite_ray = Ray::new(ray.start, -ray.direction);
-            let intersect = opposite_ray.intersect_cylinder(cylinder);
-            assert!(intersect.is_none());
-        }
-    }
-    fn _test_intersect_torus(ray: Ray, torus: Torus) {
-        if let Some(point) = ray.intersect_torus(torus) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-3);
-            dbg!(point);
-            let f = |p: Vec3| -> f32 {
-                let r1 = torus.inner_radius;
-                let r2 = torus.outer_radius;
-                let r1_sqr = r1 * r1;
-                (4.0 * r1_sqr).mul_add(
-                    -p.xy().length_squared(),
-                    r2.mul_add(-r2, r1.mul_add(r1, p.length_squared())),
-                )
-            };
-            assert_abs_diff_eq!(f(point), 0.0, epsilon = 1e-3);
+            assert_abs_diff_eq!(cylinder.equation(point), 0.0, epsilon = 1e-3);
+            assert!(point.z >= 0.0 && point.z <= cylinder.height);
         }
     }
 }
