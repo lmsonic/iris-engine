@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["geometry", "rendering"]
+members = ["geometry", "renderer"]
 resolver = "2"
 [workspace.lints.rust]
 missing_copy_implementations = "warn"

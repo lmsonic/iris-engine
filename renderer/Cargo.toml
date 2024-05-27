@@ -1,0 +1,15 @@
+[package]
+name = "renderer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1.16", features = ["derive"] }
+glam = { workspace = true }
+pollster = "0.3.0"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+wgpu = "0.20.0"
+winit = "0.30.0"
+[lints]
+workspace = true
