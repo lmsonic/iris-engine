@@ -76,8 +76,6 @@ mod tests {
     use glam::Vec3;
     use proptest::{prop_compose, proptest, strategy::Strategy};
 
-    use crate::ray;
-
     use super::Ray;
     prop_compose! {
         fn any_vec3(range:RangeInclusive<f32>)

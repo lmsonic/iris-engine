@@ -72,7 +72,6 @@ version = "0.1.0"
 dependencies = [
  "approx",
  "glam",
- "num-complex",
  "proptest",
  "roots",
 ]
@@ -120,15 +119,6 @@ name = "linux-raw-sys"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
-
-[[package]]
-name = "num-complex"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
-dependencies = [
- "num-traits",
-]
 
 [[package]]
 name = "num-traits"
@@ -216,6 +206,13 @@ name = "regex-syntax"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
+
+[[package]]
+name = "rendering"
+version = "0.1.0"
+dependencies = [
+ "glam",
+]
 
 [[package]]
 name = "roots"

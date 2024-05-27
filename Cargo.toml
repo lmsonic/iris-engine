@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["geometry"]
+members = ["geometry", "rendering"]
 resolver = "2"
 [workspace.lints.rust]
 missing_copy_implementations = "warn"
@@ -13,3 +13,9 @@ perf = "warn"
 style = "warn"
 pedantic = "warn"
 nursery = "warn"
+module_name_repetitions = "allow"
+
+[workspace.dependencies]
+glam = { version = "0.27.0", features = ["approx", "glam-assert"] }
+proptest = "1.4.0"
+approx = "0.5.1"
