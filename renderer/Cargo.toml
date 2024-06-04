@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bytemuck = { version = "1.16", features = ["derive"] }
+encase = "0.8.0"
 glam = { workspace = true }
 pollster = "0.3.0"
 tracing = "0.1.40"
