@@ -1,11 +1,11 @@
 use std::{result::Result, sync::Arc, time::Instant};
 
-use wgpu::{Instance, Surface};
+use wgpu::Surface;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
     error::EventLoopError,
-    event::{Event, KeyEvent, WindowEvent},
+    event::{KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
     window::{Window, WindowAttributes},
@@ -14,22 +14,25 @@ use winit::{
 pub trait App: 'static + Sized {
     const SRGB: bool = true;
 
+    #[must_use]
     fn optional_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
+    #[must_use]
     fn required_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
+    #[must_use]
     fn required_downlevel_capabilities() -> wgpu::DownlevelCapabilities {
         wgpu::DownlevelCapabilities {
             flags: wgpu::DownlevelFlags::empty(),
-            shader_model: wgpu::ShaderModel::Sm5,
             ..wgpu::DownlevelCapabilities::default()
         }
     }
 
+    #[must_use]
     fn required_limits() -> wgpu::Limits {
         wgpu::Limits::downlevel_webgl2_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }

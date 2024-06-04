@@ -1,12 +1,11 @@
-use approx::abs_diff_eq;
-use glam::Vec3;
-
-use crate::{
+use super::{
     plane::Plane,
     ray::Ray,
     root_finding::solve_quadratic,
     shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Triangle},
 };
+use approx::abs_diff_eq;
+use glam::Vec3;
 
 impl Ray {
     #[must_use]
@@ -171,12 +170,12 @@ mod tests {
     use proptest::proptest;
     use proptest::strategy::Strategy;
 
-    use crate::shapes::Cuboid;
-    use crate::shapes::Cylinder;
-    use crate::shapes::Ellipsoid;
-    use crate::shapes::Sphere;
-    use crate::shapes::Triangle;
-    use crate::{plane::Plane, ray::Ray};
+    use crate::geometry::shapes::Cuboid;
+    use crate::geometry::{
+        plane::Plane,
+        ray::Ray,
+        shapes::{Cylinder, Ellipsoid, Sphere, Triangle},
+    };
     prop_compose! {
         fn any_vec3(range:RangeInclusive<f32>)
                     (x in range.clone(),y in range.clone(),z in range)

@@ -36,7 +36,7 @@ mod tests {
     use proptest::proptest;
     use proptest::strategy::Strategy;
 
-    use crate::reflection::Vec3ReflectExt;
+    use crate::geometry::reflection::Vec3ReflectExt;
 
     prop_compose! {
         fn any_vec3(range:RangeInclusive<f32>)

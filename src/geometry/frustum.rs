@@ -1,7 +1,7 @@
 #![allow(clippy::module_name_repetitions)]
 use glam::{Mat4, Vec3, Vec4};
 
-use crate::plane::Plane;
+use super::plane::Plane;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frustum {
@@ -314,8 +314,8 @@ mod tests {
     use glam::Vec4;
 
     use crate::{
-        frustum::{clip_projection_matrix, PerspectiveFrustum},
-        plane::Plane,
+        geometry::frustum::{clip_projection_matrix, PerspectiveFrustum},
+        geometry::plane::Plane,
     };
     use proptest::prelude::*;
 

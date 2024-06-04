@@ -1,7 +1,7 @@
 use approx::{abs_diff_eq, AbsDiffEq, RelativeEq};
 use glam::{Mat3, Vec3, Vec4};
 
-use crate::ray::Ray;
+use super::ray::Ray;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Plane {
