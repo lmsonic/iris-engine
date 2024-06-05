@@ -1,7 +1,7 @@
 use encase::UniformBuffer;
 use glam::{Mat4, Vec3};
 use iris_engine::{
-    geometry::shapes::Cuboid,
+    geometry::shapes::Triangle,
     renderer::mesh::{Meshable, Vertex},
 };
 use std::{f32::consts, mem};
@@ -26,7 +26,7 @@ struct CameraMatrix {
 impl CameraMatrix {
     fn look_at(aspect_ratio: f32) -> Self {
         let projection = glam::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-        let eye = Vec3::new(2.0, 1.0, 3.0);
+        let eye = Vec3::new(3.0, 0.0, 0.0);
         let center = Vec3::ZERO;
         let up = Vec3::Y;
         let view = glam::Mat4::look_at_rh(eye, center, up);
@@ -50,9 +50,10 @@ impl iris_engine::renderer::app::App for Example {
     ) -> Self {
         // Create the vertex and index buffers
         let vertex_size = mem::size_of::<Vertex>();
-        let cube = Cuboid::new(Vec3::splat(1.0)).mesh();
+        let cube = Triangle::new(Vec3::Z, Vec3::NEG_Z, Vec3::Y).mesh();
         let vertices = cube.vertices();
         let indices = cube.indices();
+        dbg!(&indices);
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices),
