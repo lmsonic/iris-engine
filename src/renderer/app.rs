@@ -166,11 +166,11 @@ impl SurfaceWrapper {
 }
 
 /// Context containing global wgpu resources.
-struct AppContext {
-    instance: wgpu::Instance,
-    adapter: wgpu::Adapter,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+pub struct AppContext {
+    pub instance: wgpu::Instance,
+    pub adapter: wgpu::Adapter,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
 }
 impl AppContext {
     /// Initializes the example context.
