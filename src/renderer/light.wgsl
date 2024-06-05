@@ -34,9 +34,9 @@ struct Material {
 }
 
 
-@group(0) @binding(0) var<storage,read> directional_lights: array<DirectionalLight>;
-@group(0) @binding(1) var<storage,read> point_lights: array<PointLight>;
-@group(0) @binding(2) var<storage,read> spot_lights: array<SpotLight>;
+@group(0) @binding(1) var<storage,read> directional_lights: array<DirectionalLight>;
+@group(0) @binding(2) var<storage,read> point_lights: array<PointLight>;
+@group(0) @binding(3) var<storage,read> spot_lights: array<SpotLight>;
 
 
 fn lighting(input: ptr<function, LightingInput>, material: ptr<function, Material>) -> vec3f {

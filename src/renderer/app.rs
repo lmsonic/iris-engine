@@ -34,7 +34,7 @@ pub trait App: 'static + Sized {
 
     #[must_use]
     fn required_limits() -> wgpu::Limits {
-        wgpu::Limits::downlevel_webgl2_defaults() // These downlevel limits will allow the code to run on all possible hardware
+        wgpu::Limits::downlevel_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }
 
     fn init(

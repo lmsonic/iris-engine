@@ -1,11 +1,17 @@
-use encase::{ShaderType, UniformBuffer};
+use bytemuck::{Pod, Zeroable};
+
 use glam::{Mat4, Vec3};
 use iris_engine::{
     geometry::shapes::Cuboid,
-    renderer::mesh::{Meshable, Vertex},
+    renderer::{
+        color::Color,
+        light::{DirectionalLight, PointLight},
+        mesh::{Meshable, Vertex},
+    },
 };
 use std::{f32::consts, mem};
 use wgpu::{include_wgsl, util::DeviceExt, vertex_attr_array};
+use winit::{event::KeyEvent, keyboard::PhysicalKey};
 
 struct Example {
     vertex_buf: wgpu::Buffer,
@@ -15,24 +21,39 @@ struct Example {
     uniform_buf: wgpu::Buffer,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
+    camera: Camera,
 }
 
-#[derive(Debug, Clone, Copy, ShaderType)]
-struct CameraMatrix {
+#[derive(Debug, Clone, Copy)]
+struct Camera {
+    aspect_ratio: f32,
     position: Vec3,
+}
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+struct CameraGPU {
     view_proj: Mat4,
+    position: Vec3,
+    _pad: f32,
 }
 
-impl CameraMatrix {
-    fn look_at(aspect_ratio: f32) -> Self {
-        let projection = glam::Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-        let eye = Vec3::new(2.0, 1.0, 3.0);
+impl Camera {
+    fn new(aspect_ratio: f32, position: Vec3) -> Self {
+        Self {
+            aspect_ratio,
+            position,
+        }
+    }
+    fn matrix(&self) -> CameraGPU {
+        let projection =
+            glam::Mat4::perspective_rh(consts::FRAC_PI_4, self.aspect_ratio, 1.0, 10.0);
         let center = Vec3::ZERO;
         let up = Vec3::Y;
-        let view = glam::Mat4::look_at_rh(eye, center, up);
-        Self {
-            position: eye,
+        let view = glam::Mat4::look_at_rh(self.position, center, up);
+        CameraGPU {
             view_proj: projection * view,
+            position: self.position,
+            _pad: Default::default(),
         }
     }
 }
@@ -64,46 +85,90 @@ impl iris_engine::renderer::app::App for Example {
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-
-        // Create pipeline layout
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
-        });
-
         // Create other resources
-        let camera = CameraMatrix::look_at(config.width as f32 / config.height as f32);
-        let mut buffer = UniformBuffer::new(Vec::<u8>::new());
-        buffer.write(&camera).unwrap();
-        let byte_buffer = buffer.into_inner();
+        let camera = Camera::new(config.width as f32 / config.height as f32, Vec3::splat(2.0));
 
-        let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: &byte_buffer,
+        let camera_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[camera.matrix()]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::new(0.0, -1.0, 0.0));
+
+        let directional_lights_uniform =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Light Uniform Buffer"),
+                contents: bytemuck::cast_slice(&[directional_light]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+
+        let point_light = PointLight::new(
+            Color::WHITE,
+            Vec3::new(1.0, 1.0, 0.0),
+            10.0,
+            [0.0, 2.0, 0.0],
+        );
+
+        let point_lights_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Light Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[point_light]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
         // Create bind group
+        // Create pipeline layout
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buf.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_uniform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: directional_lights_uniform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: point_lights_uniform.as_entire_binding(),
+                },
+            ],
             label: None,
         });
 
@@ -114,7 +179,11 @@ impl iris_engine::renderer::app::App for Example {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &vertex_attr_array![0 => Float32x4,1 => Float32x3],
         }];
-
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -189,14 +258,34 @@ impl iris_engine::renderer::app::App for Example {
             index_buf,
             index_count: indices.len(),
             bind_group,
-            uniform_buf,
+            uniform_buf: camera_uniform,
             pipeline,
             pipeline_wire,
+            camera,
         }
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
+    fn update(&mut self, event: winit::event::WindowEvent) {
         //empty
+        if let winit::event::WindowEvent::KeyboardInput {
+            event:
+                KeyEvent {
+                    physical_key: PhysicalKey::Code(code),
+                    ..
+                },
+            ..
+        } = event
+        {
+            match code {
+                winit::keyboard::KeyCode::KeyA => self.camera.position.x -= 0.1,
+                winit::keyboard::KeyCode::KeyD => self.camera.position.x += 0.1,
+                winit::keyboard::KeyCode::ShiftLeft => self.camera.position.y -= 0.1,
+                winit::keyboard::KeyCode::Space => self.camera.position.y += 0.1,
+                winit::keyboard::KeyCode::KeyW => self.camera.position.z -= 0.1,
+                winit::keyboard::KeyCode::KeyS => self.camera.position.z += 0.1,
+                _ => {}
+            }
+        }
     }
 
     fn resize(
@@ -205,15 +294,22 @@ impl iris_engine::renderer::app::App for Example {
         _device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let camera = CameraMatrix::look_at(config.width as f32 / config.height as f32);
-        let mut buffer = UniformBuffer::new(Vec::<u8>::new());
-        buffer.write(&camera).unwrap();
-        let byte_buffer = buffer.into_inner();
+        self.camera.aspect_ratio = config.width as f32 / config.height as f32;
 
-        queue.write_buffer(&self.uniform_buf, 0, &byte_buffer);
+        queue.write_buffer(
+            &self.uniform_buf,
+            0,
+            bytemuck::cast_slice(&[self.camera.matrix()]),
+        );
     }
 
     fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
+        queue.write_buffer(
+            &self.uniform_buf,
+            0,
+            bytemuck::cast_slice(&[self.camera.matrix()]),
+        );
+
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {

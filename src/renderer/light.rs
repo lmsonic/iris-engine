@@ -1,46 +1,56 @@
-use encase::ShaderType;
+use bytemuck::{Pod, Zeroable};
+
 use glam::{Mat4, Vec3, Vec4};
 
 use super::color::Color;
-
-#[derive(Clone, Copy, Debug, ShaderType)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct DirectionalLight {
     pub direction: Vec3,
-    pub color: Color,
+    pub color: Vec3,
+    _pad: [f32; 2],
 }
 
 impl DirectionalLight {
     #[must_use]
-    pub const fn new(color: Color, direction: Vec3) -> Self {
-        Self { direction, color }
-    }
-}
-
-#[derive(Clone, Copy, Debug, ShaderType)]
-pub struct PointLight {
-    pub position: Vec3,
-    pub color: Color,
-    pub range: f32,
-    pub attenuation: [f32; 3],
-}
-
-impl PointLight {
-    #[must_use]
-    pub const fn new(color: Color, position: Vec3, range: f32, attenuation: [f32; 3]) -> Self {
+    pub fn new(color: Color, direction: Vec3) -> Self {
         Self {
-            position,
-            color,
-            range,
-            attenuation,
+            direction,
+            color: color.into(),
+            _pad: Default::default(),
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, ShaderType)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct PointLight {
+    pub position: Vec3,
+    pub color: Vec3,
+    pub range: f32,
+    pub attenuation: Vec3,
+    _pad: [f32; 2],
+}
+
+impl PointLight {
+    #[must_use]
+    pub fn new(color: Color, position: Vec3, range: f32, attenuation: [f32; 3]) -> Self {
+        Self {
+            position,
+            color: color.into(),
+            range,
+            attenuation: attenuation.into(),
+            _pad: Default::default(),
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct SpotLight {
     pub position: Vec3,
     pub direction: Vec3,
-    pub color: Color,
+    pub color: Vec3,
     pub range: f32,
     pub inner_cutoff: f32,
     pub outer_cutoff: f32,
@@ -48,7 +58,7 @@ pub struct SpotLight {
 
 impl SpotLight {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         position: Vec3,
         direction: Vec3,
         color: Color,
@@ -59,7 +69,7 @@ impl SpotLight {
         Self {
             position,
             direction,
-            color,
+            color: color.into(),
             range,
             inner_cutoff,
             outer_cutoff,

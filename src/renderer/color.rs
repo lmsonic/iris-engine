@@ -1,80 +1,31 @@
 use std::ops::{Add, AddAssign, Mul, MulAssign};
 
-use encase::{ShaderSize, ShaderType};
+use bytemuck::{Pod, Zeroable};
+use glam::Vec3;
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, Pod, Zeroable)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
     pub b: f32,
 }
-
-impl ShaderType for Color {
-    type ExtraMetadata = ();
-
-    const METADATA: encase::private::Metadata<Self::ExtraMetadata> = {
-        let size =
-            encase::private::SizeValue::from(<f32 as encase::private::ShaderSize>::SHADER_SIZE)
-                .mul(3);
-        let alignment = encase::private::AlignmentValue::from_next_power_of_two_size(size);
-
-        encase::private::Metadata {
-            alignment,
-            has_uniform_min_alignment: false,
-            is_pod: true,
-            min_size: size,
-            extra: (),
-        }
-    };
-
-    const UNIFORM_COMPAT_ASSERT: fn() = || {};
-}
-
-impl encase::private::WriteInto for Color {
-    fn write_into<B: encase::private::BufferMut>(&self, writer: &mut encase::private::Writer<B>) {
-        for el in &[self.r, self.g, self.b] {
-            encase::private::WriteInto::write_into(el, writer);
-        }
+impl From<Vec3> for Color {
+    fn from(value: Vec3) -> Self {
+        Color::new(value.x, value.y, value.z)
     }
 }
-
-impl encase::private::ReadFrom for Color {
-    fn read_from<B: encase::private::BufferRef>(
-        &mut self,
-        reader: &mut encase::private::Reader<B>,
-    ) {
-        let mut buffer = [0.0f32; 4];
-        for el in &mut buffer {
-            encase::private::ReadFrom::read_from(el, reader);
-        }
-
-        *self = Self {
-            r: buffer[0],
-            g: buffer[1],
-            b: buffer[2],
-        }
-    }
-}
-
-impl ShaderSize for Color {}
-
-impl encase::private::CreateFrom for Color {
-    fn create_from<B>(reader: &mut encase::private::Reader<B>) -> Self
-    where
-        B: encase::private::BufferRef,
-    {
-        // These are intentionally not inlined in the constructor to make this
-        // resilient to internal Color refactors / implicit type changes.
-        let r: f32 = encase::private::CreateFrom::create_from(reader);
-        let g: f32 = encase::private::CreateFrom::create_from(reader);
-        let b: f32 = encase::private::CreateFrom::create_from(reader);
-        Self { r, g, b }
+impl From<Color> for Vec3 {
+    fn from(value: Color) -> Self {
+        Vec3::new(value.r, value.g, value.b)
     }
 }
 
 impl Color {
     pub const BLACK: Self = Self::new(0.0, 0.0, 0.0);
+    pub const WHITE: Self = Self::new(1.0, 1.0, 1.0);
+    pub const RED: Self = Self::new(1.0, 0.0, 0.0);
     #[must_use]
     pub const fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b }
