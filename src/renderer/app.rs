@@ -51,7 +51,7 @@ pub trait App: 'static + Sized {
         queue: &wgpu::Queue,
     );
 
-    fn update(&mut self, event: WindowEvent);
+    fn input(&mut self, event: WindowEvent, queue: &wgpu::Queue);
 
     fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue);
 }
@@ -377,7 +377,7 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
 
                 self.window.as_ref().unwrap().request_redraw();
             }
-            _ => self.app.as_mut().unwrap().update(event),
+            _ => self.app.as_mut().unwrap().input(event, &self.context.queue),
         }
     }
 }

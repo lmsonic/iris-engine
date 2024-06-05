@@ -1,6 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec3, Vec4};
 
+use super::resources::VertexAttributeLayout;
+
 pub trait Meshable {
     fn mesh(&self) -> Mesh;
 }
@@ -10,7 +12,19 @@ pub trait Meshable {
 pub struct Vertex {
     pub position: Vec4,
     pub normal: Vec3,
-    _padding: f32,
+    _pad: f32,
+}
+impl VertexAttributeLayout for Vertex {
+    fn layout() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+        const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
+            wgpu::vertex_attr_array![0=>Float32x4,1=>Float32x3];
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &ATTRIBUTES,
+        }
+    }
 }
 
 impl Vertex {
@@ -19,7 +33,7 @@ impl Vertex {
         Self {
             position: position.extend(1.0),
             normal,
-            _padding: Default::default(),
+            _pad: Default::default(),
         }
     }
 }

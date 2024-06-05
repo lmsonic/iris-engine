@@ -3,7 +3,7 @@ use std::f32::consts;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use iris_engine::{
-    geometry::shapes::Triangle,
+    geometry::shapes::{Cuboid, Sphere},
     renderer::{
         bind_group::BindGroup,
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
@@ -56,7 +56,7 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) -> Self {
-        let triangle = Triangle::new(Vec3::X, Vec3::NEG_X, Vec3::Y).mesh();
+        let triangle = Sphere::new(1.0).mesh();
         let vertices = triangle.vertices();
         let indices = triangle.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
@@ -74,6 +74,7 @@ impl iris_engine::renderer::app::App for Example {
         );
         let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[]);
         let shader = include_wgsl!("../basic_shader.wgsl");
+
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
             .fragment_entry("fs_main")

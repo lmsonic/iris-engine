@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use approx::{abs_diff_eq, assert_abs_diff_eq};
 use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
 
@@ -148,6 +150,64 @@ impl Sphere {
     #[must_use]
     pub(crate) fn gradient(p: Vec3) -> Vec3 {
         2.0 * p * p
+    }
+}
+impl Meshable for Sphere {
+    fn mesh(&self) -> Mesh {
+        // Largely inspired from http://www.songho.ca/opengl/gl_sphere.html
+        let sectors = 32;
+        let stacks = 18;
+        let sectors_f32 = sectors as f32;
+        let stacks_f32 = stacks as f32;
+        let length_inv = self.radius.recip();
+        let sector_step = 2.0 * PI / sectors_f32;
+        let stack_step = PI / stacks_f32;
+
+        let mut positions: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
+        let mut normals: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
+        // let mut uvs: Vec<Vec2> = Vec::with_capacity(stacks * sectors);
+        let mut indices: Vec<usize> = Vec::with_capacity(stacks * sectors * 2 * 3);
+
+        for i in 0..stacks + 1 {
+            let stack_angle = PI / 2. - (i as f32) * stack_step;
+            let xy = self.radius * stack_angle.cos();
+            let y = self.radius * stack_angle.sin();
+
+            for j in 0..sectors + 1 {
+                let sector_angle = (j as f32) * sector_step;
+                let x = xy * sector_angle.cos();
+                let z = xy * sector_angle.sin();
+
+                positions.push([x, y, z].into());
+                normals.push([x * length_inv, y * length_inv, z * length_inv].into());
+                // uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32]);
+            }
+        }
+
+        // indices
+        //  k1--k1+1
+        //  |  / |
+        //  | /  |
+        //  k2--k2+1
+        for i in 0..stacks {
+            let mut k1 = i * (sectors + 1);
+            let mut k2 = k1 + sectors + 1;
+            for _j in 0..sectors {
+                if i != 0 {
+                    indices.push(k1);
+                    indices.push(k2);
+                    indices.push(k1 + 1);
+                }
+                if i != stacks - 1 {
+                    indices.push(k1 + 1);
+                    indices.push(k2);
+                    indices.push(k2 + 1);
+                }
+                k1 += 1;
+                k2 += 1;
+            }
+        }
+        Mesh::new(positions, indices, normals)
     }
 }
 

@@ -43,19 +43,12 @@ impl IndexBuffer {
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
         });
-        // let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //     label: Some("Index Buffer"),
-        //     contents: bytemuck::cast_slice(&indices),
-        //     usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::INDEX,
-        // });
-        Self {
-            indices,
-            // indices,
-            buffer,
-        }
+
+        Self { indices, buffer }
     }
 }
 
+#[derive(Debug)]
 pub struct DataBuffer<T> {
     pub data: T,
     pub buffer: wgpu::Buffer,

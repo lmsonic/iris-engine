@@ -1,7 +1,7 @@
 use super::texture::Texture;
 
 pub struct BindGroup {
-    pub bind_group_layout: wgpu::BindGroupLayout,
+    pub layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
 
@@ -89,7 +89,7 @@ impl BindGroup {
             entries: &bind_group_entries,
         });
         Self {
-            bind_group_layout,
+            layout: bind_group_layout,
             bind_group,
         }
     }
