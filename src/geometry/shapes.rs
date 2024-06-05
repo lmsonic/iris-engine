@@ -179,7 +179,7 @@ impl Meshable for Sphere {
                 let z = xy * sector_angle.sin();
 
                 positions.push([x, y, z].into());
-                normals.push([x * length_inv, y * length_inv, z * length_inv].into());
+                normals.push([x * length_inv, z * length_inv, y * length_inv].into());
                 // uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32]);
             }
         }

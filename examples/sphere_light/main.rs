@@ -3,11 +3,13 @@ use std::f32::consts;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use iris_engine::{
-    geometry::shapes::{Cuboid, Sphere},
+    geometry::shapes::Sphere,
     renderer::{
         bind_group::BindGroup,
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
         camera::OrbitCamera,
+        color::Color,
+        light::DirectionalLight,
         mesh::{Meshable, Vertex},
         render_pipeline::RenderPipelineBuilder,
     },
@@ -20,6 +22,7 @@ struct Example {
     index_buffer: IndexBuffer,
     bind_group: BindGroup,
     camera: OrbitCamera,
+    projection: Mat4,
     camera_uniform: DataBuffer<CameraUniform>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
@@ -30,15 +33,17 @@ struct Example {
 struct CameraUniform {
     projection: Mat4,
     view: Mat4,
+    inverse_view: Mat4,
     position: Vec3,
     _pad: f32,
 }
 
 impl CameraUniform {
-    fn new(projection: Mat4, view: Mat4, position: Vec3) -> Self {
+    fn new(projection: Mat4, view: Mat4, inverse_view: Mat4, position: Vec3) -> Self {
         Self {
             projection,
             view,
+            inverse_view,
             position,
             _pad: 0.0,
         }
@@ -64,21 +69,26 @@ impl iris_engine::renderer::app::App for Example {
         let camera = OrbitCamera::new(2.0);
 
         let aspect_ratio = config.width as f32 / config.height as f32;
+        let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        let view = camera.view();
+        let inv_view = view.inverse().transpose();
         let camera_uniform = DataBuffer::uniform(
-            CameraUniform::new(
-                Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0),
-                camera.view(),
-                camera.position(),
-            ),
+            CameraUniform::new(projection, view, inv_view, camera.position()),
             device,
         );
-        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[]);
-        let shader = include_wgsl!("../basic_shader.wgsl");
+
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::new(-1.0, -0.0, -0.0));
+        let light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
+        let bind_group = BindGroup::new(
+            device,
+            &[&camera_uniform.buffer, &light_uniform.buffer],
+            &[],
+        );
+        let shader = include_wgsl!("../light_shader.wgsl");
 
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
-            .fragment_entry("fs_main")
-            .cull_mode(None)
+            // .cull_mode(None)
             .build::<Vertex>();
 
         let pipeline_wire = if device
@@ -96,8 +106,8 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
+        // let pipeline_wire = None;
 
-        // Done
         Example {
             vertex_buffer,
             index_buffer,
@@ -106,13 +116,19 @@ impl iris_engine::renderer::app::App for Example {
             camera_uniform,
             pipeline,
             pipeline_wire,
+            projection,
         }
     }
 
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
         if self.camera.input(event) {
             self.camera_uniform.data.position = self.camera.position();
-            self.camera_uniform.data.view = self.camera.view();
+
+            let view = self.camera.view();
+            let inv_view = view.inverse().transpose();
+            self.camera_uniform.data.view = view;
+            self.camera_uniform.data.inverse_view = inv_view;
+
             self.camera_uniform.update(queue);
         }
     }
@@ -124,8 +140,8 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera_uniform.data.projection =
-            Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        self.projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        self.camera_uniform.data.projection = self.projection;
         self.camera_uniform.update(queue);
     }
 

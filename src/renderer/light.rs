@@ -3,12 +3,28 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3, Vec4};
 
 use super::color::Color;
+
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct GpuLight {
+    pub position: Vec4,
+    pub color: Vec3,
+    _pad: f32,
+}
+
+impl GpuLight {
+    fn new(position: Vec4, color: Vec3) -> Self {
+        Self {
+            position,
+            color,
+            _pad: 0.0,
+        }
+    }
+}
+
 pub struct DirectionalLight {
     pub direction: Vec3,
     pub color: Vec3,
-    _pad: [f32; 2],
 }
 
 impl DirectionalLight {
@@ -17,31 +33,28 @@ impl DirectionalLight {
         Self {
             direction,
             color: color.into(),
-            _pad: Default::default(),
         }
+    }
+    pub fn to_gpu(&self) -> GpuLight {
+        GpuLight::new(self.direction.extend(0.0), self.color)
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
-    pub range: f32,
-    pub attenuation: Vec3,
-    _pad: [f32; 2],
 }
 
 impl PointLight {
     #[must_use]
-    pub fn new(color: Color, position: Vec3, range: f32, attenuation: [f32; 3]) -> Self {
+    pub fn new(color: Color, position: Vec3) -> Self {
         Self {
             position,
             color: color.into(),
-            range,
-            attenuation: attenuation.into(),
-            _pad: Default::default(),
         }
+    }
+    pub fn to_gpu(&self) -> GpuLight {
+        GpuLight::new(self.position.extend(1.0), self.color)
     }
 }
 

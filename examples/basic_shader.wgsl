@@ -15,10 +15,10 @@ var<uniform> camera: Camera;
 
 @vertex
 fn vs_main(
-    @location(0) position: vec4<f32>,
+    @location(0) position: vec3<f32>,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.position = camera.projection * camera.view * position;
+    result.position = camera.projection * camera.view * vec4(position, 1.0);
     return result;
 }
 

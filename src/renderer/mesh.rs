@@ -10,7 +10,7 @@ pub trait Meshable {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct Vertex {
-    pub position: Vec4,
+    pub position: Vec3,
     pub normal: Vec3,
     _pad: f32,
 }
@@ -31,7 +31,7 @@ impl Vertex {
     #[must_use]
     pub fn new(position: Vec3, normal: Vec3) -> Self {
         Self {
-            position: position.extend(1.0),
+            position,
             normal,
             _pad: Default::default(),
         }

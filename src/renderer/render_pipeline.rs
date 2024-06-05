@@ -116,7 +116,7 @@ impl<'a> RenderPipelineBuilder<'a> {
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
+                    front_face: wgpu::FrontFace::Cw,
                     cull_mode: self.cull_mode,
                     polygon_mode: self.polygon_mode.map_or(Default::default(), |m| m),
                     ..Default::default()
