@@ -18,7 +18,7 @@ nursery = "warn"
 module_name_repetitions = "allow"
 
 [dependencies]
-glam = { version = "0.27.0", features = ["approx", "glam-assert"] }
+glam = { version = "0.27.0", features = ["approx", "glam-assert", "bytemuck"] }
 proptest = "1.4.0"
 approx = "0.5.1"
 bytemuck = { version = "1.16", features = ["derive"] }

@@ -1,6 +1,8 @@
 use approx::{abs_diff_eq, assert_abs_diff_eq};
 use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
 
+use crate::renderer::mesh::{Mesh, Meshable};
+
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
     pub v1: Vec3,
@@ -33,6 +35,15 @@ impl Triangle {
         weights.x >= 0.0 && weights.y >= 0.0 && weights.x + weights.y <= 1.0
     }
 }
+impl Meshable for Triangle {
+    fn mesh(&self) -> Mesh {
+        let vertices = vec![self.v1, self.v2, self.v3];
+        let triangles = vec![0, 1, 2];
+        let normal = self.normal();
+        let normals = vec![normal, normal, normal];
+        Mesh::new(vertices, triangles, normals)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Cuboid {
@@ -58,6 +69,59 @@ impl Cuboid {
         point.x >= 0.0 && point.x <= self.size.x
             || point.y >= 0.0 && point.y <= self.size.y
             || point.z >= 0.0 && point.z <= self.size.z
+    }
+}
+
+impl Meshable for Cuboid {
+    fn mesh(&self) -> Mesh {
+        let max = self.size * 0.5;
+        let min = -self.size * 0.5;
+        // Suppose Y-up right hand, and camera look from +Z to -Z
+        let vertices = [
+            // Front
+            ([min.x, min.y, max.z], [0.0, 0.0, 1.0]),
+            ([max.x, min.y, max.z], [0.0, 0.0, 1.0]),
+            ([max.x, max.y, max.z], [0.0, 0.0, 1.0]),
+            ([min.x, max.y, max.z], [0.0, 0.0, 1.0]),
+            // Back
+            ([min.x, max.y, min.z], [0.0, 0.0, -1.0]),
+            ([max.x, max.y, min.z], [0.0, 0.0, -1.0]),
+            ([max.x, min.y, min.z], [0.0, 0.0, -1.0]),
+            ([min.x, min.y, min.z], [0.0, 0.0, -1.0]),
+            // Right
+            ([max.x, min.y, min.z], [1.0, 0.0, 0.0]),
+            ([max.x, max.y, min.z], [1.0, 0.0, 0.0]),
+            ([max.x, max.y, max.z], [1.0, 0.0, 0.0]),
+            ([max.x, min.y, max.z], [1.0, 0.0, 0.0]),
+            // Left
+            ([min.x, min.y, max.z], [-1.0, 0.0, 0.0]),
+            ([min.x, max.y, max.z], [-1.0, 0.0, 0.0]),
+            ([min.x, max.y, min.z], [-1.0, 0.0, 0.0]),
+            ([min.x, min.y, min.z], [-1.0, 0.0, 0.0]),
+            // Top
+            ([max.x, max.y, min.z], [0.0, 1.0, 0.0]),
+            ([min.x, max.y, min.z], [0.0, 1.0, 0.0]),
+            ([min.x, max.y, max.z], [0.0, 1.0, 0.0]),
+            ([max.x, max.y, max.z], [0.0, 1.0, 0.0]),
+            // Bottom
+            ([max.x, min.y, max.z], [0.0, -1.0, 0.0]),
+            ([min.x, min.y, max.z], [0.0, -1.0, 0.0]),
+            ([min.x, min.y, min.z], [0.0, -1.0, 0.0]),
+            ([max.x, min.y, min.z], [0.0, -1.0, 0.0]),
+        ];
+
+        let positions: Vec<_> = vertices.iter().map(|(p, _)| (*p).into()).collect();
+        let normals: Vec<_> = vertices.iter().map(|(_, n)| (*n).into()).collect();
+
+        let indices = vec![
+            0, 1, 2, 2, 3, 0, // front
+            4, 5, 6, 6, 7, 4, // back
+            8, 9, 10, 10, 11, 8, // right
+            12, 13, 14, 14, 15, 12, // left
+            16, 17, 18, 18, 19, 16, // top
+            20, 21, 22, 22, 23, 20, // bottom
+        ];
+        Mesh::new(positions, indices, normals)
     }
 }
 

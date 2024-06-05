@@ -1,78 +1,76 @@
-use encase::ShaderType;
+use bytemuck::{Pod, Zeroable};
 use glam::{Vec3, Vec4};
 
-use super::color::Color;
+pub trait Meshable {
+    fn mesh(&self) -> Mesh;
+}
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, ShaderType)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct Vertex {
     pub position: Vec4,
     pub normal: Vec3,
-    pub color: Color,
+    _padding: f32,
 }
 
 impl Vertex {
     #[must_use]
-    pub fn new(position: Vec3, normal: Vec3, color: Color) -> Self {
+    pub fn new(position: Vec3, normal: Vec3) -> Self {
         Self {
             position: position.extend(1.0),
             normal,
-            color,
+            _padding: Default::default(),
         }
     }
-}
-#[derive(Debug, Clone, Copy)]
-pub struct IndexTriangle {
-    pub v1: usize,
-    pub v2: usize,
-    pub v3: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Mesh {
-    pub vertices: Vec<Vec3>,
-    pub triangles: Vec<IndexTriangle>,
+    pub positions: Vec<Vec3>,
+    pub indices: Vec<usize>,
     pub normals: Vec<Vec3>,
-    pub colors: Vec<Color>,
 }
 
 impl Mesh {
+    pub fn new(positions: Vec<Vec3>, indices: Vec<usize>, normals: Vec<Vec3>) -> Self {
+        Self {
+            positions,
+            indices,
+            normals,
+        }
+    }
+
     pub fn recalculate_normals(&mut self) {
-        for (index, _) in self.vertices.iter().enumerate() {
+        for (index, _) in self.positions.iter().enumerate() {
             let normal: Vec3 = self
-                .triangles
-                .iter()
-                .filter(|t| t.v1 == index || t.v2 == index || t.v3 == index)
+                .indices
+                .chunks_exact(3)
+                .filter(|t| t[0] == index || t[1] == index || t[2] == index)
                 .map(|t| {
-                    let v1 = self.vertices[t.v1];
-                    let v2 = self.vertices[t.v2];
-                    let v3 = self.vertices[t.v3];
+                    let v1: Vec3 = self.positions[t[0]];
+                    let v2: Vec3 = self.positions[t[1]];
+                    let v3: Vec3 = self.positions[t[2]];
                     // Unnormalized, bigger areas contribute more to the normals
                     (v2 - v1).cross(v3 - v1)
                 })
                 .sum();
             self.normals[index] = normal.normalize();
+            todo!()
         }
     }
     #[must_use]
     pub fn vertices(&self) -> Vec<Vertex> {
-        let n_vertices = self.vertices.len();
+        let n_vertices = self.positions.len();
         assert_eq!(n_vertices, self.normals.len());
-        assert_eq!(n_vertices, self.colors.len());
-        assert_eq!(n_vertices, self.triangles.len() / 3);
 
-        self.vertices
+        self.positions
             .iter()
             .zip(self.normals.iter())
-            .zip(self.colors.iter())
-            .map(|((position, normal), color)| Vertex::new(*position, *normal, *color))
+            .map(|(position, normal)| Vertex::new(*position, *normal))
             .collect()
     }
     #[must_use]
-    pub fn indices(&self) -> Vec<usize> {
-        self.triangles
-            .iter()
-            .flat_map(|v| [v.v1, v.v2, v.v3])
-            .collect()
+    pub fn indices(&self) -> Vec<u32> {
+        self.indices.iter().map(|i| *i as u32).collect()
     }
 }
