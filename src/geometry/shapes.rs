@@ -213,15 +213,15 @@ impl Sphere {
         for i in 0..stacks + 1 {
             let stack_angle = PI / 2. - (i as f32) * stack_step;
             let xy = self.radius * stack_angle.cos();
-            let z = self.radius * stack_angle.sin();
+            let y = self.radius * stack_angle.sin();
 
             for j in 0..sectors + 1 {
                 let sector_angle = (j as f32) * sector_step;
                 let x = xy * sector_angle.cos();
-                let y = xy * sector_angle.sin();
+                let z = xy * sector_angle.sin();
 
-                positions.push([x, y, z].into());
-                normals.push([x * length_inv, y * length_inv, z * length_inv].into());
+                positions.push([x, y, -z].into());
+                normals.push([x * length_inv, y * length_inv, -z * length_inv].into());
                 uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32].into());
             }
         }
@@ -255,7 +255,7 @@ impl Sphere {
 }
 impl Meshable for Sphere {
     fn mesh(&self) -> Mesh {
-        Sphere::ico(self, 5)
+        Sphere::uv(self, 18, 20)
     }
 }
 

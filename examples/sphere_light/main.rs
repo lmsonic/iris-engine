@@ -84,8 +84,8 @@ impl iris_engine::renderer::app::App for Example {
             device,
         );
 
-        let directional_light = DirectionalLight::new(Color::BLACK, Vec3::NEG_ONE);
-        let point_light = PointLight::new(Color::WHITE, Vec3::ONE * 2.0);
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
+        let point_light = PointLight::new(Color::BLACK, Vec3::ONE * 2.0);
         let directional_light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
         let point_light_uniform = DataBuffer::uniform(point_light.to_gpu(), device);
         let texture = Texture::new("checkerboard.png", device, queue);

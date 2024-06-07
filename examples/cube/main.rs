@@ -12,6 +12,7 @@ use iris_engine::{
         light::{DirectionalLight, PointLight},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
+        texture::Texture,
     },
 };
 
@@ -63,7 +64,7 @@ impl iris_engine::renderer::app::App for Example {
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
     ) -> Self {
         let triangle = Cuboid::new(Vec3::splat(1.0)).mesh();
         let vertices = triangle.vertices();
@@ -85,6 +86,7 @@ impl iris_engine::renderer::app::App for Example {
         let point_light = PointLight::new(Color::WHITE, Vec3::ONE * 2.0);
         let directional_light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
         let point_light_uniform = DataBuffer::uniform(point_light.to_gpu(), device);
+        let texture = Texture::new("checkerboard.png", device, queue);
         let bind_group = BindGroup::new(
             device,
             &[
@@ -92,7 +94,7 @@ impl iris_engine::renderer::app::App for Example {
                 &directional_light_uniform.buffer,
                 &point_light_uniform.buffer,
             ],
-            &[],
+            &[&texture],
         );
         let shader = include_wgsl!("../lit.wgsl");
 
