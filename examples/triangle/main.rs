@@ -8,8 +8,10 @@ use iris_engine::{
         bind_group::BindGroup,
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
         camera::OrbitCamera,
+        color::Color,
+        light::DirectionalLight,
         mesh::{Meshable, Vertex},
-        render_pipeline::RenderPipelineBuilder,
+        render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
     },
 };
 
@@ -30,8 +32,16 @@ struct Example {
 struct CameraUniform {
     projection: Mat4,
     view: Mat4,
+    inverse_view: Mat4,
     position: Vec3,
     _pad: f32,
+}
+
+impl CameraUniform {
+    fn set_view(&mut self, view: Mat4) {
+        self.view = view;
+        self.inverse_view = view.inverse().transpose();
+    }
 }
 
 impl CameraUniform {
@@ -39,6 +49,7 @@ impl CameraUniform {
         Self {
             projection,
             view,
+            inverse_view: view.inverse().transpose(),
             position,
             _pad: 0.0,
         }
@@ -56,7 +67,7 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) -> Self {
-        let triangle = Triangle::new(Vec3::X, Vec3::NEG_X, Vec3::Y).mesh();
+        let triangle = Triangle::new(Vec3::X, Vec3::NEG_X, Vec3::new(0.0, 1.0, 1.0)).mesh();
         let vertices = triangle.vertices();
         let indices = triangle.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
@@ -72,8 +83,14 @@ impl iris_engine::renderer::app::App for Example {
             ),
             device,
         );
-        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[]);
-        let shader = include_wgsl!("../basic_shader.wgsl");
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::new(0.0, 0.0, -1.0));
+        let light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
+        let bind_group = BindGroup::new(
+            device,
+            &[&camera_uniform.buffer, &light_uniform.buffer],
+            &[],
+        );
+        let shader = include_wgsl!("../light_shader.wgsl");
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
             .fragment_entry("fs_main")
@@ -111,7 +128,7 @@ impl iris_engine::renderer::app::App for Example {
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
         if self.camera.input(event) {
             self.camera_uniform.data.position = self.camera.position();
-            self.camera_uniform.data.view = self.camera.view();
+            self.camera_uniform.data.set_view(self.camera.view());
             self.camera_uniform.update(queue);
         }
     }
@@ -132,25 +149,15 @@ impl iris_engine::renderer::app::App for Example {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+            let mut rpass = RenderPassBuilder::new(&mut encoder, view)
+                .clear_color(wgpu::Color {
+                    r: 0.1,
+                    g: 0.2,
+                    b: 0.3,
+                    a: 1.0,
+                })
+                .build();
+
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(

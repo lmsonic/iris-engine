@@ -23,7 +23,7 @@ impl GpuLight {
 }
 
 pub struct DirectionalLight {
-    pub direction: Vec3,
+    pub position: Vec3,
     pub color: Vec3,
 }
 
@@ -31,12 +31,12 @@ impl DirectionalLight {
     #[must_use]
     pub fn new(color: Color, direction: Vec3) -> Self {
         Self {
-            direction,
+            position: direction.normalize(),
             color: color.into(),
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
-        GpuLight::new(self.direction.extend(0.0), self.color)
+        GpuLight::new(-self.position.extend(0.0), self.color)
     }
 }
 

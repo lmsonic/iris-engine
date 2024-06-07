@@ -11,7 +11,7 @@ use iris_engine::{
         color::Color,
         light::DirectionalLight,
         mesh::{Meshable, Vertex},
-        render_pipeline::RenderPipelineBuilder,
+        render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
     },
 };
 
@@ -39,11 +39,18 @@ struct CameraUniform {
 }
 
 impl CameraUniform {
-    fn new(projection: Mat4, view: Mat4, inverse_view: Mat4, position: Vec3) -> Self {
+    fn set_view(&mut self, view: Mat4) {
+        self.view = view;
+        self.inverse_view = view.inverse().transpose();
+    }
+}
+
+impl CameraUniform {
+    fn new(projection: Mat4, view: Mat4, position: Vec3) -> Self {
         Self {
             projection,
             view,
-            inverse_view,
+            inverse_view: view.inverse().transpose(),
             position,
             _pad: 0.0,
         }
@@ -61,9 +68,9 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) -> Self {
-        let triangle = Sphere::new(1.0).mesh();
-        let vertices = triangle.vertices();
-        let indices = triangle.indices();
+        let sphere = Sphere::new(1.0).mesh();
+        let vertices = sphere.vertices();
+        let indices = sphere.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
         let index_buffer = IndexBuffer::new(indices, device);
         let camera = OrbitCamera::new(2.0);
@@ -71,13 +78,12 @@ impl iris_engine::renderer::app::App for Example {
         let aspect_ratio = config.width as f32 / config.height as f32;
         let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
         let view = camera.view();
-        let inv_view = view.inverse().transpose();
         let camera_uniform = DataBuffer::uniform(
-            CameraUniform::new(projection, view, inv_view, camera.position()),
+            CameraUniform::new(projection, view, camera.position()),
             device,
         );
 
-        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::new(-1.0, -0.0, -0.0));
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
         let light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
         let bind_group = BindGroup::new(
             device,
@@ -123,12 +129,7 @@ impl iris_engine::renderer::app::App for Example {
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
         if self.camera.input(event) {
             self.camera_uniform.data.position = self.camera.position();
-
-            let view = self.camera.view();
-            let inv_view = view.inverse().transpose();
-            self.camera_uniform.data.view = view;
-            self.camera_uniform.data.inverse_view = inv_view;
-
+            self.camera_uniform.data.set_view(self.camera.view());
             self.camera_uniform.update(queue);
         }
     }
@@ -149,25 +150,14 @@ impl iris_engine::renderer::app::App for Example {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
-            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+            let mut rpass = RenderPassBuilder::new(&mut encoder, view)
+                .clear_color(wgpu::Color {
+                    r: 0.1,
+                    g: 0.2,
+                    b: 0.3,
+                    a: 1.0,
+                })
+                .build();
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(

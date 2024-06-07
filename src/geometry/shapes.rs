@@ -1,7 +1,8 @@
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_2, PI};
 
 use approx::{abs_diff_eq, assert_abs_diff_eq};
-use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
+use glam::{Mat2, Mat3, Mat4, Vec2, Vec3, Vec3Swizzles};
+use hexasphere::shapes::IcoSphere;
 
 use crate::renderer::mesh::{Mesh, Meshable};
 
@@ -76,44 +77,46 @@ impl Cuboid {
 
 impl Meshable for Cuboid {
     fn mesh(&self) -> Mesh {
-        let max = self.size * 0.5;
         let min = -self.size * 0.5;
+        let max = self.size * 0.5;
+
         // Suppose Y-up right hand, and camera look from +Z to -Z
-        let vertices = [
+        let vertices = &[
             // Front
-            ([min.x, min.y, max.z], [0.0, 0.0, 1.0]),
-            ([max.x, min.y, max.z], [0.0, 0.0, 1.0]),
-            ([max.x, max.y, max.z], [0.0, 0.0, 1.0]),
-            ([min.x, max.y, max.z], [0.0, 0.0, 1.0]),
+            ([min.x, min.y, max.z], [0.0, 0.0, 1.0], [0.0, 0.0]),
+            ([max.x, min.y, max.z], [0.0, 0.0, 1.0], [1.0, 0.0]),
+            ([max.x, max.y, max.z], [0.0, 0.0, 1.0], [1.0, 1.0]),
+            ([min.x, max.y, max.z], [0.0, 0.0, 1.0], [0.0, 1.0]),
             // Back
-            ([min.x, max.y, min.z], [0.0, 0.0, -1.0]),
-            ([max.x, max.y, min.z], [0.0, 0.0, -1.0]),
-            ([max.x, min.y, min.z], [0.0, 0.0, -1.0]),
-            ([min.x, min.y, min.z], [0.0, 0.0, -1.0]),
+            ([min.x, max.y, min.z], [0.0, 0.0, -1.0], [1.0, 0.0]),
+            ([max.x, max.y, min.z], [0.0, 0.0, -1.0], [0.0, 0.0]),
+            ([max.x, min.y, min.z], [0.0, 0.0, -1.0], [0.0, 1.0]),
+            ([min.x, min.y, min.z], [0.0, 0.0, -1.0], [1.0, 1.0]),
             // Right
-            ([max.x, min.y, min.z], [1.0, 0.0, 0.0]),
-            ([max.x, max.y, min.z], [1.0, 0.0, 0.0]),
-            ([max.x, max.y, max.z], [1.0, 0.0, 0.0]),
-            ([max.x, min.y, max.z], [1.0, 0.0, 0.0]),
+            ([max.x, min.y, min.z], [1.0, 0.0, 0.0], [0.0, 0.0]),
+            ([max.x, max.y, min.z], [1.0, 0.0, 0.0], [1.0, 0.0]),
+            ([max.x, max.y, max.z], [1.0, 0.0, 0.0], [1.0, 1.0]),
+            ([max.x, min.y, max.z], [1.0, 0.0, 0.0], [0.0, 1.0]),
             // Left
-            ([min.x, min.y, max.z], [-1.0, 0.0, 0.0]),
-            ([min.x, max.y, max.z], [-1.0, 0.0, 0.0]),
-            ([min.x, max.y, min.z], [-1.0, 0.0, 0.0]),
-            ([min.x, min.y, min.z], [-1.0, 0.0, 0.0]),
+            ([min.x, min.y, max.z], [-1.0, 0.0, 0.0], [1.0, 0.0]),
+            ([min.x, max.y, max.z], [-1.0, 0.0, 0.0], [0.0, 0.0]),
+            ([min.x, max.y, min.z], [-1.0, 0.0, 0.0], [0.0, 1.0]),
+            ([min.x, min.y, min.z], [-1.0, 0.0, 0.0], [1.0, 1.0]),
             // Top
-            ([max.x, max.y, min.z], [0.0, 1.0, 0.0]),
-            ([min.x, max.y, min.z], [0.0, 1.0, 0.0]),
-            ([min.x, max.y, max.z], [0.0, 1.0, 0.0]),
-            ([max.x, max.y, max.z], [0.0, 1.0, 0.0]),
+            ([max.x, max.y, min.z], [0.0, 1.0, 0.0], [1.0, 0.0]),
+            ([min.x, max.y, min.z], [0.0, 1.0, 0.0], [0.0, 0.0]),
+            ([min.x, max.y, max.z], [0.0, 1.0, 0.0], [0.0, 1.0]),
+            ([max.x, max.y, max.z], [0.0, 1.0, 0.0], [1.0, 1.0]),
             // Bottom
-            ([max.x, min.y, max.z], [0.0, -1.0, 0.0]),
-            ([min.x, min.y, max.z], [0.0, -1.0, 0.0]),
-            ([min.x, min.y, min.z], [0.0, -1.0, 0.0]),
-            ([max.x, min.y, min.z], [0.0, -1.0, 0.0]),
+            ([max.x, min.y, max.z], [0.0, -1.0, 0.0], [0.0, 0.0]),
+            ([min.x, min.y, max.z], [0.0, -1.0, 0.0], [1.0, 0.0]),
+            ([min.x, min.y, min.z], [0.0, -1.0, 0.0], [1.0, 1.0]),
+            ([max.x, min.y, min.z], [0.0, -1.0, 0.0], [0.0, 1.0]),
         ];
 
-        let positions: Vec<_> = vertices.iter().map(|(p, _)| (*p).into()).collect();
-        let normals: Vec<_> = vertices.iter().map(|(_, n)| (*n).into()).collect();
+        let positions: Vec<Vec3> = vertices.iter().map(|(p, _, _)| Vec3::from(*p)).collect();
+        let normals: Vec<Vec3> = vertices.iter().map(|(_, n, _)| Vec3::from(*n)).collect();
+        // let uvs: Vec<_> = vertices.iter().map(|(_, _, uv)| *uv).collect();
 
         let indices = vec![
             0, 1, 2, 2, 3, 0, // front
@@ -151,36 +154,70 @@ impl Sphere {
     pub(crate) fn gradient(p: Vec3) -> Vec3 {
         2.0 * p * p
     }
-}
-impl Meshable for Sphere {
-    fn mesh(&self) -> Mesh {
+    fn ico(&self, subdivisions: usize) -> Mesh {
+        let generated = IcoSphere::new(subdivisions, |point| {
+            let inclination = point.y.acos();
+            let azimuth = point.z.atan2(point.x);
+
+            let norm_inclination = inclination / std::f32::consts::PI;
+            let norm_azimuth = 0.5 - (azimuth / std::f32::consts::TAU);
+
+            [norm_azimuth, norm_inclination]
+        });
+
+        let raw_points = generated.raw_points();
+
+        let positions = raw_points
+            .iter()
+            .map(|&p| (p * self.radius).into())
+            .collect::<Vec<Vec3>>();
+
+        let normals = raw_points
+            .iter()
+            .copied()
+            .map(Into::into)
+            .collect::<Vec<Vec3>>();
+
+        let uvs = generated.raw_data().to_owned();
+
+        let mut indices = Vec::with_capacity(generated.indices_per_main_triangle() * 20);
+
+        for i in 0..20 {
+            generated.get_indices(i, &mut indices);
+        }
+
+        let indices = indices.into_iter().map(|i| i as usize).collect();
+        Mesh::new(positions, indices, normals)
+    }
+    fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
+        // From https://docs.rs/bevy_render/latest/src/bevy_render/mesh/primitives/dim3/sphere.rs.html#182
+
         // Largely inspired from http://www.songho.ca/opengl/gl_sphere.html
-        let sectors = 32;
-        let stacks = 18;
+
         let sectors_f32 = sectors as f32;
         let stacks_f32 = stacks as f32;
-        let length_inv = self.radius.recip();
-        let sector_step = 2.0 * PI / sectors_f32;
+        let length_inv = 1. / self.radius;
+        let sector_step = 2. * PI / sectors_f32;
         let stack_step = PI / stacks_f32;
 
         let mut positions: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
         let mut normals: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
-        // let mut uvs: Vec<Vec2> = Vec::with_capacity(stacks * sectors);
+        let mut uvs: Vec<Vec2> = Vec::with_capacity(stacks * sectors);
         let mut indices: Vec<usize> = Vec::with_capacity(stacks * sectors * 2 * 3);
 
         for i in 0..stacks + 1 {
             let stack_angle = PI / 2. - (i as f32) * stack_step;
             let xy = self.radius * stack_angle.cos();
-            let y = self.radius * stack_angle.sin();
+            let z = self.radius * stack_angle.sin();
 
             for j in 0..sectors + 1 {
                 let sector_angle = (j as f32) * sector_step;
                 let x = xy * sector_angle.cos();
-                let z = xy * sector_angle.sin();
+                let y = xy * sector_angle.sin();
 
                 positions.push([x, y, z].into());
-                normals.push([x * length_inv, z * length_inv, y * length_inv].into());
-                // uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32]);
+                normals.push([x * length_inv, y * length_inv, z * length_inv].into());
+                uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32].into());
             }
         }
 
@@ -207,7 +244,13 @@ impl Meshable for Sphere {
                 k2 += 1;
             }
         }
+
         Mesh::new(positions, indices, normals)
+    }
+}
+impl Meshable for Sphere {
+    fn mesh(&self) -> Mesh {
+        Sphere::ico(self, 5)
     }
 }
 

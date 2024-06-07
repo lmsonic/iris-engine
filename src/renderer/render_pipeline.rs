@@ -116,7 +116,7 @@ impl<'a> RenderPipelineBuilder<'a> {
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
-                    front_face: wgpu::FrontFace::Cw,
+                    front_face: wgpu::FrontFace::Ccw,
                     cull_mode: self.cull_mode,
                     polygon_mode: self.polygon_mode.map_or(Default::default(), |m| m),
                     ..Default::default()
@@ -158,5 +158,44 @@ impl<'a> RenderPipelineBuilder<'a> {
                 }),
                 multiview: None,
             })
+    }
+}
+
+pub struct RenderPassBuilder<'a> {
+    clear_color: wgpu::Color,
+    encoder: &'a mut wgpu::CommandEncoder,
+    view: &'a wgpu::TextureView,
+}
+
+impl<'a> RenderPassBuilder<'a> {
+    pub fn new(encoder: &'a mut wgpu::CommandEncoder, view: &'a wgpu::TextureView) -> Self {
+        Self {
+            clear_color: wgpu::Color::default(),
+            encoder,
+            view,
+        }
+    }
+    pub fn clear_color(self, clear_color: wgpu::Color) -> Self {
+        Self {
+            clear_color,
+            encoder: self.encoder,
+            view: self.view,
+        }
+    }
+    pub fn build(self) -> wgpu::RenderPass<'a> {
+        self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: self.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(self.clear_color),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        })
     }
 }

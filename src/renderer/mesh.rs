@@ -12,13 +12,12 @@ pub trait Meshable {
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
-    _pad: f32,
 }
 impl VertexAttributeLayout for Vertex {
     fn layout() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
         const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![0=>Float32x4,1=>Float32x3];
+            wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3];
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -30,11 +29,7 @@ impl VertexAttributeLayout for Vertex {
 impl Vertex {
     #[must_use]
     pub fn new(position: Vec3, normal: Vec3) -> Self {
-        Self {
-            position,
-            normal,
-            _pad: Default::default(),
-        }
+        Self { position, normal }
     }
 }
 
@@ -68,8 +63,8 @@ impl Mesh {
                     (v2 - v1).cross(v3 - v1)
                 })
                 .sum();
-            self.normals[index] = normal.normalize();
-            todo!()
+
+            self.normals[index] = normal.normalize_or_zero();
         }
     }
     #[must_use]
