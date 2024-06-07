@@ -83,14 +83,9 @@ impl iris_engine::renderer::app::App for Example {
             ),
             device,
         );
-        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::new(0.0, 0.0, -1.0));
-        let light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
-        let bind_group = BindGroup::new(
-            device,
-            &[&camera_uniform.buffer, &light_uniform.buffer],
-            &[],
-        );
-        let shader = include_wgsl!("../light_shader.wgsl");
+
+        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[]);
+        let shader = include_wgsl!("../unlit.wgsl");
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
             .fragment_entry("fs_main")

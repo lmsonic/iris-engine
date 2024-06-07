@@ -9,9 +9,10 @@ use iris_engine::{
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
-        light::DirectionalLight,
+        light::{DirectionalLight, PointLight},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
+        texture::Texture,
     },
 };
 
@@ -66,7 +67,7 @@ impl iris_engine::renderer::app::App for Example {
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
     ) -> Self {
         let sphere = Sphere::new(1.0).mesh();
         let vertices = sphere.vertices();
@@ -83,14 +84,21 @@ impl iris_engine::renderer::app::App for Example {
             device,
         );
 
-        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
-        let light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
+        let directional_light = DirectionalLight::new(Color::BLACK, Vec3::NEG_ONE);
+        let point_light = PointLight::new(Color::WHITE, Vec3::ONE * 2.0);
+        let directional_light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
+        let point_light_uniform = DataBuffer::uniform(point_light.to_gpu(), device);
+        let texture = Texture::new("checkerboard.png", device, queue);
         let bind_group = BindGroup::new(
             device,
-            &[&camera_uniform.buffer, &light_uniform.buffer],
-            &[],
+            &[
+                &camera_uniform.buffer,
+                &directional_light_uniform.buffer,
+                &point_light_uniform.buffer,
+            ],
+            &[&texture],
         );
-        let shader = include_wgsl!("../light_shader.wgsl");
+        let shader = include_wgsl!("../lit.wgsl");
 
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)

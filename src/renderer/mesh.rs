@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec3, Vec4};
+use glam::{Vec2, Vec3, Vec4};
 
 use super::resources::VertexAttributeLayout;
 
@@ -12,12 +12,13 @@ pub trait Meshable {
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
+    pub uv: Vec2,
 }
 impl VertexAttributeLayout for Vertex {
     fn layout() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
-        const ATTRIBUTES: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3];
+        const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
+            wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3,2=>Float32x2];
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -28,8 +29,12 @@ impl VertexAttributeLayout for Vertex {
 
 impl Vertex {
     #[must_use]
-    pub fn new(position: Vec3, normal: Vec3) -> Self {
-        Self { position, normal }
+    pub fn new(position: Vec3, normal: Vec3, uv: Vec2) -> Self {
+        Self {
+            position,
+            normal,
+            uv,
+        }
     }
 }
 
@@ -38,14 +43,21 @@ pub struct Mesh {
     pub positions: Vec<Vec3>,
     pub indices: Vec<usize>,
     pub normals: Vec<Vec3>,
+    pub uvs: Vec<Vec2>,
 }
 
 impl Mesh {
-    pub fn new(positions: Vec<Vec3>, indices: Vec<usize>, normals: Vec<Vec3>) -> Self {
+    pub fn new(
+        positions: Vec<Vec3>,
+        indices: Vec<usize>,
+        normals: Vec<Vec3>,
+        uvs: Vec<Vec2>,
+    ) -> Self {
         Self {
             positions,
             indices,
             normals,
+            uvs,
         }
     }
 
@@ -75,7 +87,8 @@ impl Mesh {
         self.positions
             .iter()
             .zip(self.normals.iter())
-            .map(|(position, normal)| Vertex::new(*position, *normal))
+            .zip(self.uvs.iter())
+            .map(|((position, normal), uv)| Vertex::new(*position, *normal, *uv))
             .collect()
     }
     #[must_use]

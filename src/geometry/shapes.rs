@@ -44,7 +44,8 @@ impl Meshable for Triangle {
         let triangles = vec![0, 1, 2];
         let normal = self.normal();
         let normals = vec![normal, normal, normal];
-        Mesh::new(vertices, triangles, normals)
+        let uvs = vec![[0.0, 0.0].into(), [0.0, 1.0].into(), [1.0, 0.0].into()];
+        Mesh::new(vertices, triangles, normals, uvs)
     }
 }
 
@@ -116,7 +117,7 @@ impl Meshable for Cuboid {
 
         let positions: Vec<Vec3> = vertices.iter().map(|(p, _, _)| Vec3::from(*p)).collect();
         let normals: Vec<Vec3> = vertices.iter().map(|(_, n, _)| Vec3::from(*n)).collect();
-        // let uvs: Vec<_> = vertices.iter().map(|(_, _, uv)| *uv).collect();
+        let uvs: Vec<_> = vertices.iter().map(|(_, _, uv)| Vec2::from(*uv)).collect();
 
         let indices = vec![
             0, 1, 2, 2, 3, 0, // front
@@ -126,7 +127,7 @@ impl Meshable for Cuboid {
             16, 17, 18, 18, 19, 16, // top
             20, 21, 22, 22, 23, 20, // bottom
         ];
-        Mesh::new(positions, indices, normals)
+        Mesh::new(positions, indices, normals, uvs)
     }
 }
 
@@ -178,7 +179,11 @@ impl Sphere {
             .map(Into::into)
             .collect::<Vec<Vec3>>();
 
-        let uvs = generated.raw_data().to_owned();
+        let uvs = generated
+            .raw_data()
+            .iter()
+            .map(|uv| Vec2::from(*uv))
+            .collect();
 
         let mut indices = Vec::with_capacity(generated.indices_per_main_triangle() * 20);
 
@@ -187,7 +192,7 @@ impl Sphere {
         }
 
         let indices = indices.into_iter().map(|i| i as usize).collect();
-        Mesh::new(positions, indices, normals)
+        Mesh::new(positions, indices, normals, uvs)
     }
     fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
         // From https://docs.rs/bevy_render/latest/src/bevy_render/mesh/primitives/dim3/sphere.rs.html#182
@@ -245,7 +250,7 @@ impl Sphere {
             }
         }
 
-        Mesh::new(positions, indices, normals)
+        Mesh::new(positions, indices, normals, uvs)
     }
 }
 impl Meshable for Sphere {

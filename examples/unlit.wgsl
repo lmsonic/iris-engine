@@ -1,4 +1,7 @@
 
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+};
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
 };
@@ -15,10 +18,10 @@ var<uniform> camera: Camera;
 
 @vertex
 fn vs_main(
-    @location(0) position: vec3<f32>,
+    in: VertexInput,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.position = camera.projection * camera.view * vec4(position, 1.0);
+    result.position = camera.projection * camera.view * vec4(in.position, 1.0);
     return result;
 }
 

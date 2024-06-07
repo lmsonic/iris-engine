@@ -1,8 +1,15 @@
 
+struct VertexInput {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
+};
+
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
 };
 
 
@@ -24,8 +31,10 @@ struct Camera {
 var<uniform> camera: Camera;
 
 @group(0) @binding(1) var<uniform> directional_light: Light;
-// @group(0) @binding(2) var<uniform> point_light: Light;
-fn lighting(input: ptr<function, LightingInput>, material: ptr<function, Material>) -> vec3f {
+@group(0) @binding(2) var<uniform> point_light: Light;
+@group(0) @binding(3) var texture: texture_2d<f32>;
+@group(0) @binding(4) var s_texture: sampler;
+fn lighting(input: ptr<function, LightingInput>, material: ptr<function, Material>, light: Light) -> vec3f {
     // Lighting is calculate_ in clip space
     var diffuse = vec3f(0.0);
     var specular = vec3f(0.0);
@@ -37,36 +46,26 @@ fn lighting(input: ptr<function, LightingInput>, material: ptr<function, Materia
     let specular_color = (*material).specular_color;
     let specular_exponent = (*material).specular_exponent;
 
-    let light = directional_light;
-    let L = normalize((camera.view * light.direction).xyz - P * light.direction.w);
-    let intensity = light.color;
+    let light_direction = (camera.view * light.direction).xyz - P * light.direction.w;
+    let L = normalize(light_direction);
+    var intensity = vec3f(0.0);
+    if light.direction.w == 0.0 {
+        intensity = light.color;
+    } else {
+        // if distance < light.range {
+        let distance = length(light_direction);
+        // let attenuation = light.attenuation[0] + light.attenuation[1] * distance + light.attenuation[2] * distance * distance;
+        intensity = light.color / distance * distance;
+        // }
+    }
+
 
     let NdotL = max(dot(N, L), 0.0);
     diffuse += intensity * NdotL;
     let H = normalize(V + L);
-    // let R = reflect(L, N);
     let NdotH = max(dot(N, H), 0.0);
-    // let RdotV = max(dot(R, V), 0.0);
+
     specular += intensity * pow(NdotH, specular_exponent) * select(0.0, 1.0, NdotL > 0.0);
-    // return H;
-
-
-    // let light = point_light;
-    // let delta = light.position - position;
-    // let distance = length(delta);
-    // if distance < light.range {
-    //     let direction_to_light = normalize(delta);
-    //     let attenuation = light.attenuation[0] + light.attenuation[1] * distance + light.attenuation[2] * distance * distance;
-    //     let intensity = light.color / attenuation;
-    // } else {
-    //     let intensity = vec3f(0.0);
-    // }
-
-
-    // let ndotl = dot(normal, direction_to_light);
-    // diffuse += intensity * saturate(ndotl);
-    // let half = normalize(direction_to_light + view);
-    // specular += intensity * pow(saturate(dot(normal, half)), specular_exponent) * select(1.0, 0.0, ndotl > 0.0);
 
     return diffuse_color * ambient + diffuse_color * diffuse + specular_color * specular;
 }
@@ -75,13 +74,13 @@ fn lighting(input: ptr<function, LightingInput>, material: ptr<function, Materia
 
 @vertex
 fn vs_main(
-    @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
+    in: VertexInput,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.clip_position = camera.proj * camera.view * vec4f(position, 1.0);
-    result.position = (camera.view * vec4f(position, 1.0)).xyz;
-    result.normal = (camera.inv_view * vec4f(normal, 1.0)).xyz;
+    result.clip_position = camera.proj * camera.view * vec4f(in.position, 1.0);
+    result.position = (camera.view * vec4f(in.position, 1.0)).xyz;
+    result.normal = (camera.inv_view * vec4f(in.normal, 1.0)).xyz;
+    result.uv = in.uv;
     return result;
 }
 
@@ -105,10 +104,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     lighting_input.view = - in.position;
     lighting_input.ambient_light = vec3f(0.01);
     var material: Material;
-    material.diffuse_color = vec3f(1.0);
+    material.diffuse_color = textureSample(texture, s_texture, in.uv).rgb;
     material.specular_color = vec3f(1.0);
     material.specular_exponent = 100.0;
-    let lighting = lighting(&lighting_input, &material);
+    let lighting = lighting(&lighting_input, &material, directional_light) + lighting(&lighting_input, &material, point_light);
     return vec4<f32>(lighting, 1.0);
 }
 

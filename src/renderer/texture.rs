@@ -9,11 +9,11 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(path: impl AsRef<Path>, wgpu: &AppContext) -> Self {
-        let (texture, view) = load_texture(path, &wgpu.device, &wgpu.queue).unwrap();
-        compute::generate_mipmaps(&texture, &wgpu.device, &wgpu.queue);
+    pub fn new(path: impl AsRef<Path>, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let (texture, view) = load_texture(path, device, queue).unwrap();
+        compute::generate_mipmaps(&texture, device, queue);
 
-        let sampler = wgpu.device.create_sampler(&wgpu::SamplerDescriptor {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("Texture"),
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
