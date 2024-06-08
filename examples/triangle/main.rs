@@ -1,5 +1,3 @@
-use std::f32::consts;
-
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use iris_engine::{
@@ -8,8 +6,6 @@ use iris_engine::{
         bind_group::BindGroup,
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
         camera::OrbitCamera,
-        color::Color,
-        light::DirectionalLight,
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
         texture::Texture,

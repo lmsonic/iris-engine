@@ -1,4 +1,9 @@
-pub fn generate_mipmaps(texture: &wgpu::Texture, device: &wgpu::Device, queue: &wgpu::Queue) {
+pub fn generate_mipmaps(
+    texture: &wgpu::Texture,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    layer: u32,
+) {
     // Create mip views and sizes
     let mut mip_sizes = vec![texture.size()];
     let mut mip_views = vec![];
@@ -11,8 +16,8 @@ pub fn generate_mipmaps(texture: &wgpu::Texture, device: &wgpu::Device, queue: &
             aspect: wgpu::TextureAspect::All,
             base_mip_level: level,
             mip_level_count: Some(1),
-            base_array_layer: 0,
-            array_layer_count: Some(1),
+            base_array_layer: layer,
+            array_layer_count: Some(texture.depth_or_array_layers()),
         }));
         if level > 0 {
             let previous_size = mip_sizes[level as usize - 1];
@@ -95,9 +100,10 @@ pub fn generate_mipmaps(texture: &wgpu::Texture, device: &wgpu::Device, queue: &
 
     for level in 1..mip_level_count {
         // We write to each mip level using the previous level
-        compute_pass.set_bind_group(0, &bind_groups[level as usize - 1], &[]);
-        let invocation_count_x = texture.width();
-        let invocation_count_y = texture.height();
+        let level = level as usize;
+        compute_pass.set_bind_group(0, &bind_groups[level - 1], &[]);
+        let invocation_count_x = mip_sizes[level - 1].width;
+        let invocation_count_y = mip_sizes[level - 1].height;
         let workgroup_size_per_dim = 8;
         // This ceils invocation_count / workgroup_size
         let workgroup_count_x =

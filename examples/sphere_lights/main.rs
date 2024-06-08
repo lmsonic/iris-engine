@@ -1,5 +1,3 @@
-use std::f32::consts;
-
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
 use iris_engine::{

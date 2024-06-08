@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use glam::{Mat4, Vec3, Vec3Swizzles, Vec4};
+use glam::{Mat4, Vec3, Vec4};
 
 use super::color::Color;
 

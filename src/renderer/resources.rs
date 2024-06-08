@@ -8,8 +8,9 @@ use pollster::FutureExt;
 use wgpu::Extent3d;
 
 use super::buffer::Buffer;
+use super::compute;
 
-fn get_max_mip_level_count(width: u32, height: u32) -> u32 {
+pub fn get_max_mip_level_count(width: u32, height: u32) -> u32 {
     bit_width(u32::max(width, height))
 }
 
@@ -59,8 +60,9 @@ pub fn load_texture(
         bytes_per_row: Some(4 * texture.size().width),
         rows_per_image: Some(texture.size().height),
     };
-    let data = image.into_rgba8().into_raw();
-    queue.write_texture(destination, &data, source, texture.size());
+    let data = image.as_rgba8().unwrap().as_raw();
+    queue.write_texture(destination, data, source, texture.size());
+    compute::generate_mipmaps(&texture, device, queue, 0);
 
     let view_label = label.map(|s| format!("{s} Texture View"));
     let view = texture.create_view(&wgpu::TextureViewDescriptor {

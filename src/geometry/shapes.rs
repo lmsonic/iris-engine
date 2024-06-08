@@ -1,7 +1,7 @@
-use std::f32::consts::{FRAC_PI_2, PI};
+use std::f32::consts::PI;
 
 use approx::{abs_diff_eq, assert_abs_diff_eq};
-use glam::{Mat2, Mat3, Mat4, Vec2, Vec3, Vec3Swizzles};
+use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
 use hexasphere::shapes::IcoSphere;
 
 use crate::renderer::mesh::{Mesh, Meshable};
