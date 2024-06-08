@@ -1,29 +1,19 @@
 use bytemuck::{Pod, Zeroable};
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec3Swizzles, Vec4};
 
 use super::color::Color;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct GpuLight {
-    pub position: Vec4,
-    pub color: Vec3,
-    _pad: f32,
-}
-
-impl GpuLight {
-    fn new(position: Vec4, color: Vec3) -> Self {
-        Self {
-            position,
-            color,
-            _pad: 0.0,
-        }
-    }
+    position: Vec4,
+    color_range: Vec4,
+    custom_data: Vec4,
 }
 
 pub struct DirectionalLight {
-    pub position: Vec3,
+    pub direction: Vec3,
     pub color: Vec3,
 }
 
@@ -31,18 +21,24 @@ impl DirectionalLight {
     #[must_use]
     pub fn new(color: Color, direction: Vec3) -> Self {
         Self {
-            position: direction.normalize(),
+            direction: direction.normalize(),
             color: color.into(),
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
-        GpuLight::new(-self.position.extend(0.0), self.color)
+        GpuLight {
+            position: -self.direction.extend(0.0),
+            color_range: self.color.extend(0.0),
+            custom_data: Default::default(),
+        }
     }
 }
 
 pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
+    pub range: f32,
+    pub attenuation: [f32; 3],
 }
 
 impl PointLight {
@@ -51,41 +47,56 @@ impl PointLight {
         Self {
             position,
             color: color.into(),
+            range: 100.0,
+            attenuation: [0.0, 2.0, 0.0],
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
-        GpuLight::new(self.position.extend(1.0), self.color)
+        GpuLight {
+            position: self.position.extend(1.0),
+            color_range: self.color.extend(self.range),
+            custom_data: Vec4::new(
+                self.attenuation[0],
+                self.attenuation[1],
+                self.attenuation[2],
+                0.0,
+            ),
+        }
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug)]
 pub struct SpotLight {
     pub position: Vec3,
     pub direction: Vec3,
     pub color: Vec3,
     pub range: f32,
-    pub inner_cutoff: f32,
     pub outer_cutoff: f32,
 }
 
 impl SpotLight {
     #[must_use]
     pub fn new(
+        color: Color,
         position: Vec3,
         direction: Vec3,
-        color: Color,
         range: f32,
-        inner_cutoff: f32,
         outer_cutoff: f32,
     ) -> Self {
         Self {
             position,
-            direction,
+            direction: direction.normalize(),
             color: color.into(),
             range,
-            inner_cutoff,
             outer_cutoff,
+        }
+    }
+
+    pub fn to_gpu(&self) -> GpuLight {
+        GpuLight {
+            position: self.position.extend(1.0),
+            color_range: self.color.extend(self.range),
+            custom_data: self.direction.extend(self.outer_cutoff.cos()),
         }
     }
 

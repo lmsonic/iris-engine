@@ -1,4 +1,4 @@
-use std::f32::consts::FRAC_PI_2;
+use std::{f32::consts::FRAC_PI_2, f32::consts::FRAC_PI_4};
 
 use glam::{Mat4, Quat, Vec3};
 use winit::{
@@ -31,6 +31,9 @@ impl OrbitCamera {
     }
     pub fn view(&self) -> Mat4 {
         Mat4::look_at_rh(self.position(), Vec3::ZERO, Vec3::Y)
+    }
+    pub fn projection(&self, aspect_ratio: f32) -> Mat4 {
+        Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 1.0, 10.0)
     }
 
     pub fn input(&mut self, event: WindowEvent) -> bool {

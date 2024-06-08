@@ -76,27 +76,16 @@ impl iris_engine::renderer::app::App for Example {
         let aspect_ratio = config.width as f32 / config.height as f32;
         let camera_uniform = DataBuffer::uniform(
             CameraUniform::new(
-                Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0),
+                camera.projection(aspect_ratio),
                 camera.view(),
                 camera.position(),
             ),
             device,
         );
-        let directional_light = DirectionalLight::new(Color::BLACK, Vec3::NEG_ONE);
-        let point_light = PointLight::new(Color::WHITE, Vec3::ONE * 2.0);
-        let directional_light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
-        let point_light_uniform = DataBuffer::uniform(point_light.to_gpu(), device);
+
         let texture = Texture::new("checkerboard.png", device, queue);
-        let bind_group = BindGroup::new(
-            device,
-            &[
-                &camera_uniform.buffer,
-                &directional_light_uniform.buffer,
-                &point_light_uniform.buffer,
-            ],
-            &[&texture],
-        );
-        let shader = include_wgsl!("../lit.wgsl");
+        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[&texture]);
+        let shader = include_wgsl!("../unlit.wgsl");
 
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
@@ -146,8 +135,7 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera_uniform.data.projection =
-            Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        self.camera_uniform.data.projection = self.camera.projection(aspect_ratio);
         self.camera_uniform.update(queue);
     }
 

@@ -12,6 +12,7 @@ use iris_engine::{
         light::DirectionalLight,
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
+        texture::Texture,
     },
 };
 
@@ -65,7 +66,7 @@ impl iris_engine::renderer::app::App for Example {
         config: &wgpu::SurfaceConfiguration,
         _adapter: &wgpu::Adapter,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
     ) -> Self {
         let triangle = Triangle::new(Vec3::X, Vec3::NEG_X, Vec3::new(0.0, 1.0, 1.0)).mesh();
         let vertices = triangle.vertices();
@@ -77,14 +78,15 @@ impl iris_engine::renderer::app::App for Example {
         let aspect_ratio = config.width as f32 / config.height as f32;
         let camera_uniform = DataBuffer::uniform(
             CameraUniform::new(
-                Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0),
+                camera.projection(aspect_ratio),
                 camera.view(),
                 camera.position(),
             ),
             device,
         );
 
-        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[]);
+        let texture = Texture::new("checkerboard.png", device, queue);
+        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[&texture]);
         let shader = include_wgsl!("../unlit.wgsl");
         let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
             .bind_group(&bind_group.layout)
@@ -135,8 +137,7 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera_uniform.data.projection =
-            Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        self.camera_uniform.data.projection = self.camera.projection(aspect_ratio);
         self.camera_uniform.update(queue);
     }
 

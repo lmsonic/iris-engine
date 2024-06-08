@@ -9,7 +9,7 @@ use iris_engine::{
         buffer::{DataBuffer, IndexBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
-        light::{DirectionalLight, PointLight},
+        light::{DirectionalLight, PointLight, SpotLight},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
         texture::Texture,
@@ -23,7 +23,6 @@ struct Example {
     index_buffer: IndexBuffer,
     bind_group: BindGroup,
     camera: OrbitCamera,
-    projection: Mat4,
     camera_uniform: DataBuffer<CameraUniform>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
@@ -77,17 +76,28 @@ impl iris_engine::renderer::app::App for Example {
         let camera = OrbitCamera::new(2.0);
 
         let aspect_ratio = config.width as f32 / config.height as f32;
-        let projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-        let view = camera.view();
+
         let camera_uniform = DataBuffer::uniform(
-            CameraUniform::new(projection, view, camera.position()),
+            CameraUniform::new(
+                camera.projection(aspect_ratio),
+                camera.view(),
+                camera.position(),
+            ),
             device,
         );
 
-        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
-        let point_light = PointLight::new(Color::BLACK, Vec3::ONE * 2.0);
+        let directional_light = DirectionalLight::new(Color::RED, Vec3::ONE);
+        let point_light = PointLight::new(Color::GREEN, Vec3::ONE);
+        let spot_light = SpotLight::new(
+            Color::BLUE,
+            Vec3::Y * 2.0,
+            Vec3::NEG_Y,
+            100.0,
+            f32::to_radians(45.0),
+        );
         let directional_light_uniform = DataBuffer::uniform(directional_light.to_gpu(), device);
         let point_light_uniform = DataBuffer::uniform(point_light.to_gpu(), device);
+        let spot_light_uniform = DataBuffer::uniform(spot_light.to_gpu(), device);
         let texture = Texture::new("checkerboard.png", device, queue);
         let bind_group = BindGroup::new(
             device,
@@ -95,6 +105,7 @@ impl iris_engine::renderer::app::App for Example {
                 &camera_uniform.buffer,
                 &directional_light_uniform.buffer,
                 &point_light_uniform.buffer,
+                &spot_light_uniform.buffer,
             ],
             &[&texture],
         );
@@ -120,7 +131,7 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
-        // let pipeline_wire = None;
+        let pipeline_wire = None;
 
         Example {
             vertex_buffer,
@@ -130,7 +141,6 @@ impl iris_engine::renderer::app::App for Example {
             camera_uniform,
             pipeline,
             pipeline_wire,
-            projection,
         }
     }
 
@@ -149,8 +159,7 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.projection = Mat4::perspective_rh(consts::FRAC_PI_4, aspect_ratio, 1.0, 10.0);
-        self.camera_uniform.data.projection = self.projection;
+        self.camera_uniform.data.projection = self.camera.projection(aspect_ratio);
         self.camera_uniform.update(queue);
     }
 
