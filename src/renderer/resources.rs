@@ -1,9 +1,11 @@
+use std::cmp::min;
 use std::{fmt::Debug, path::Path};
 
 use glam::{Vec2, Vec3};
 use image::flat::SampleLayout;
 use image::imageops::thumbnail;
-use image::{DynamicImage, FlatSamples, Rgba};
+use image::{DynamicImage, FlatSamples, GrayImage, Rgb, RgbImage, Rgba};
+use num_traits::NumCast;
 use pollster::FutureExt;
 use wgpu::Extent3d;
 
@@ -21,6 +23,73 @@ const fn bit_width(x: u32) -> u32 {
         1 + x.ilog2()
     }
 }
+
+fn from_f32_to_u8(float: f32) -> u8 {
+    let inner = (float.clamp(0.0, 1.0) * u8::MAX as f32).round();
+    NumCast::from(inner).unwrap()
+}
+fn from_u8_to_f32(int: u8) -> f32 {
+    (int as f32 / u8::MAX as f32).clamp(0.0, 1.0)
+}
+pub fn convert_height_to_normal_map(image: &GrayImage, scale: f32) -> RgbImage {
+    // TODO: convert this into a compute shader
+    let (width, height) = image.dimensions();
+    let mut result = RgbImage::new(width, height);
+    for x in 0..width {
+        for y in 0..height {
+            let y_top = min(y + 1, height - 1);
+            let y_bottom = y.saturating_sub(1);
+            let x_right = min(y + 1, height - 1);
+            let x_left = x.saturating_sub(1);
+
+            let r = from_u8_to_f32(image.get_pixel(x_right, y).0[0]);
+            let l = from_u8_to_f32(image.get_pixel(x_left, y).0[0]);
+            let t = from_u8_to_f32(image.get_pixel(x, y_top).0[0]);
+            let b = from_u8_to_f32(image.get_pixel(x, y_bottom).0[0]);
+
+            let tr = from_u8_to_f32(image.get_pixel(x_right, y_top).0[0]);
+            let tl = from_u8_to_f32(image.get_pixel(x_left, y_top).0[0]);
+            let br = from_u8_to_f32(image.get_pixel(x_right, y_bottom).0[0]);
+            let bl = from_u8_to_f32(image.get_pixel(x_left, y_bottom).0[0]);
+
+            // Sobel operator
+            let dx = tr + 2.0 * r + br - tl - 2.0 * l - bl;
+            let dy = tr + 2.0 * t + tl - bl - 2.0 * b - br;
+            let n = Vec3::new(dx, dy, scale.recip()).normalize();
+            let pixel = Rgb::from([
+                from_f32_to_u8(n.x),
+                from_f32_to_u8(n.y),
+                from_f32_to_u8(n.z),
+            ]);
+            result.put_pixel(x, y, pixel);
+        }
+    }
+
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use image::DynamicImage;
+
+    use super::convert_height_to_normal_map;
+
+    #[test]
+    fn test_height_map_to_normal() {
+        let image = image::io::Reader::open("height_map.png")
+            .unwrap()
+            .decode()
+            .unwrap()
+            .grayscale()
+            .to_luma8();
+
+        let normal = DynamicImage::from(convert_height_to_normal_map(&image, 1.0)).to_rgb8();
+        normal
+            .save_with_format("heightmap_normal.png", image::ImageFormat::Png)
+            .unwrap();
+    }
+}
+
 pub fn load_texture(
     path: impl AsRef<Path>,
     device: &wgpu::Device,
@@ -94,7 +163,7 @@ pub fn get_texture_data(
     let padded_bytes_per_row = bytes_per_row.max(256);
     let pixel_buffer = Buffer::new(
         device,
-        u64::from(padded_bytes_per_row * height),
+        (padded_bytes_per_row * height).into(),
         wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
     );
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -186,31 +255,15 @@ pub fn write_mipmaps(queue: &wgpu::Queue, texture: &wgpu::Texture, image: Dynami
                     let i10 = 4 * (mip_level_index * (height_index + 1) + width_index);
                     let i11 = 4 * (mip_level_index * (height_index + 1) + (width_index + 1));
 
-                    let p00: &[u8] = &previous_level_pixels[i00..(i00 + 4)];
+                    let p00 = &previous_level_pixels[i00..(i00 + 4)];
                     let p01 = &previous_level_pixels[i01..(i01 + 4)];
                     let p10 = &previous_level_pixels[i10..(i10 + 4)];
                     let p11 = &previous_level_pixels[i11..(i11 + 4)];
                     // Average
-                    let r = (u32::from(p00[0])
-                        + u32::from(p01[0])
-                        + u32::from(p10[0])
-                        + u32::from(p11[0]))
-                        / 4;
-                    let g = (u32::from(p00[1])
-                        + u32::from(p01[1])
-                        + u32::from(p10[1])
-                        + u32::from(p11[1]))
-                        / 4;
-                    let b = (u32::from(p00[2])
-                        + u32::from(p01[2])
-                        + u32::from(p10[2])
-                        + u32::from(p11[2]))
-                        / 4;
-                    let a = (u32::from(p00[3])
-                        + u32::from(p01[3])
-                        + u32::from(p10[3])
-                        + u32::from(p11[3]))
-                        / 4;
+                    let r = (p00[0] as u32 + p01[0] as u32 + p10[0] as u32 + p11[0] as u32) / 4;
+                    let g = (p00[1] as u32 + p01[1] as u32 + p10[1] as u32 + p11[1] as u32) / 4;
+                    let b = (p00[2] as u32 + p01[2] as u32 + p10[2] as u32 + p11[2] as u32) / 4;
+                    let a = (p00[3] as u32 + p01[3] as u32 + p10[3] as u32 + p11[3] as u32) / 4;
                     pixels.extend([r as u8, g as u8, b as u8, a as u8]);
                 }
             }

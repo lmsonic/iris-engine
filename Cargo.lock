@@ -946,6 +946,7 @@ dependencies = [
  "glam",
  "hexasphere",
  "image",
+ "num-traits",
  "pollster",
  "proptest",
  "roots",

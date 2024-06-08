@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 6b792a5875bb2897196db7b66374c86a9432dd7a63f7a620e348579df873ca21 # shrinks to mut line = Ray { start: Vec3(0.0, -886.43677, 0.0), direction: Vec3(0.0, 1.0, 0.0) }, radius = Vec3(89.502304, 0.0115486635, 73.77189)
+cc 787ce45b889b30cb295f4a97de95fad07919ff777868f573b2f29d4ffeff43dd # shrinks to line = Ray { start: Vec3(-942.7579, -988.703, 0.0), direction: Vec3(0.75657594, -0.65017706, -0.06973253) }, plane = Plane { normal: Vec3(-0.5703412, -0.6936441, 0.4399645), distance: 1087.0074 }
