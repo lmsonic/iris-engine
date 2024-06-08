@@ -155,7 +155,7 @@ impl Sphere {
     pub(crate) fn gradient(p: Vec3) -> Vec3 {
         2.0 * p * p
     }
-    fn ico(&self, subdivisions: usize) -> Mesh {
+    pub fn ico(&self, subdivisions: usize) -> Mesh {
         let generated = IcoSphere::new(subdivisions, |point| {
             let inclination = point.y.acos();
             let azimuth = point.z.atan2(point.x);
@@ -194,7 +194,7 @@ impl Sphere {
         let indices = indices.into_iter().map(|i| i as usize).collect();
         Mesh::new(positions, indices, normals, uvs)
     }
-    fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
+    pub fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
         // From https://docs.rs/bevy_render/latest/src/bevy_render/mesh/primitives/dim3/sphere.rs.html#182
 
         // Largely inspired from http://www.songho.ca/opengl/gl_sphere.html
