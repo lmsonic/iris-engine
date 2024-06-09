@@ -4,8 +4,11 @@ use std::{fmt::Debug, path::Path};
 use glam::{Vec2, Vec3};
 use image::flat::SampleLayout;
 use image::imageops::thumbnail;
-use image::{DynamicImage, FlatSamples, GrayImage, Rgb, RgbImage, Rgba};
-use num_traits::NumCast;
+use image::{DynamicImage, FlatSamples, GrayImage, RgbImage, Rgba};
+use palette::encoding::Linear;
+use palette::luma::Luma;
+use palette::white_point::D65;
+use palette::{LinLuma, LinSrgb, Srgb, SrgbLuma};
 use pollster::FutureExt;
 use wgpu::Extent3d;
 
@@ -24,13 +27,6 @@ const fn bit_width(x: u32) -> u32 {
     }
 }
 
-fn from_f32_to_u8(float: f32) -> u8 {
-    let inner = (float.clamp(0.0, 1.0) * u8::MAX as f32).round();
-    NumCast::from(inner).unwrap()
-}
-fn from_u8_to_f32(int: u8) -> f32 {
-    (int as f32 / u8::MAX as f32).clamp(0.0, 1.0)
-}
 pub fn convert_height_to_normal_map(image: &GrayImage, scale: f32) -> RgbImage {
     // TODO: convert this into a compute shader
     let (width, height) = image.dimensions();
@@ -42,26 +38,22 @@ pub fn convert_height_to_normal_map(image: &GrayImage, scale: f32) -> RgbImage {
             let x_right = min(y + 1, height - 1);
             let x_left = x.saturating_sub(1);
 
-            let r = from_u8_to_f32(image.get_pixel(x_right, y).0[0]);
-            let l = from_u8_to_f32(image.get_pixel(x_left, y).0[0]);
-            let t = from_u8_to_f32(image.get_pixel(x, y_top).0[0]);
-            let b = from_u8_to_f32(image.get_pixel(x, y_bottom).0[0]);
-
-            let tr = from_u8_to_f32(image.get_pixel(x_right, y_top).0[0]);
-            let tl = from_u8_to_f32(image.get_pixel(x_left, y_top).0[0]);
-            let br = from_u8_to_f32(image.get_pixel(x_right, y_bottom).0[0]);
-            let bl = from_u8_to_f32(image.get_pixel(x_left, y_bottom).0[0]);
-
+            let r: LinLuma = SrgbLuma::new(image.get_pixel(x_right, y).0[0]).into_linear();
+            let l: LinLuma = SrgbLuma::new(image.get_pixel(x_left, y).0[0]).into_linear();
+            let t: LinLuma = SrgbLuma::new(image.get_pixel(x, y_top).0[0]).into_linear();
+            let b: LinLuma = SrgbLuma::new(image.get_pixel(x, y_bottom).0[0]).into_linear();
+            let tr: LinLuma = SrgbLuma::new(image.get_pixel(x_right, y_top).0[0]).into_linear();
+            let tl: LinLuma = SrgbLuma::new(image.get_pixel(x_left, y_top).0[0]).into_linear();
+            let br: LinLuma = SrgbLuma::new(image.get_pixel(x_right, y_bottom).0[0]).into_linear();
+            let bl: LinLuma = SrgbLuma::new(image.get_pixel(x_left, y_bottom).0[0]).into_linear();
             // Sobel operator
-            let dx = tr + 2.0 * r + br - tl - 2.0 * l - bl;
-            let dy = tr + 2.0 * t + tl - bl - 2.0 * b - br;
-            let n = Vec3::new(dx, dy, scale.recip()).normalize();
-            let pixel = Rgb::from([
-                from_f32_to_u8(n.x),
-                from_f32_to_u8(n.y),
-                from_f32_to_u8(n.z),
-            ]);
-            result.put_pixel(x, y, pixel);
+            let dx = tr + r * 2.0 + br - tl - l * 2.0 - bl;
+            let dy = tr + t * 2.0 + tl - bl - b * 2.0 - br;
+            let n = Vec3::new(dx.luma, dy.luma, scale.recip()).normalize();
+
+            let srgb = Srgb::<u8>::from_linear(LinSrgb::new(n.x, n.y, n.z));
+            let srgb = image::Rgb::from([srgb.red, srgb.green, srgb.blue]);
+            result.put_pixel(x, y, srgb);
         }
     }
 
@@ -83,10 +75,8 @@ mod tests {
             .grayscale()
             .to_luma8();
 
-        let normal = DynamicImage::from(convert_height_to_normal_map(&image, 1.0)).to_rgb8();
-        normal
-            .save_with_format("heightmap_normal.png", image::ImageFormat::Png)
-            .unwrap();
+        let normal = DynamicImage::from(convert_height_to_normal_map(&image, 1.0));
+        normal.save("heightmap_normal.png").unwrap();
     }
 }
 
