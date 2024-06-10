@@ -57,9 +57,9 @@ impl iris_engine::renderer::app::App for Example {
         );
         let light_storage = StorageBuffer::new(
             [
-                // directional_light.to_gpu(),
+                directional_light.to_gpu(),
                 point_light.to_gpu(),
-                // spot_light.to_gpu(),
+                spot_light.to_gpu(),
             ],
             device,
         );
