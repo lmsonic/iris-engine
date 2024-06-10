@@ -169,14 +169,12 @@ pub struct MeshPipelineBuilder;
 impl MeshPipelineBuilder {
     #[allow(clippy::new_ret_no_self)]
     pub fn new<'a, M: Material<'a>>(
-        device: &'a wgpu::Device,
-        surface_format: wgpu::TextureFormat,
         material: &'a M,
         other_bind_group: &'a wgpu::BindGroupLayout,
     ) -> RenderPipelineBuilder<'a> {
         let shader = M::shader();
         let bind_group = material.bind_group();
-        RenderPipelineBuilder::new(device, shader, surface_format)
+        RenderPipelineBuilder::new(shader)
             .add_bind_group(other_bind_group)
             .add_bind_group(&bind_group.layout)
     }

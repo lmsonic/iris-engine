@@ -1,25 +1,19 @@
-use wgpu::include_wgsl;
+use wgpu::{include_wgsl, Color};
 
 use super::resources::VertexAttributeLayout;
 
 pub struct RenderPipelineWire;
 
-impl RenderPipelineWire {
+impl<'a> RenderPipelineWire {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(
-        device: &wgpu::Device,
-        surface_format: wgpu::TextureFormat,
-    ) -> RenderPipelineBuilder {
+    pub fn new() -> RenderPipelineBuilder<'a> {
         let shader = include_wgsl!("wire.wgsl");
-        RenderPipelineBuilder::new(device, shader, surface_format)
-            .polygon_mode(wgpu::PolygonMode::Line)
+        RenderPipelineBuilder::new(shader).polygon_mode(wgpu::PolygonMode::Line)
     }
 }
 
 pub struct RenderPipelineBuilder<'a> {
-    device: &'a wgpu::Device,
-    shader_module: wgpu::ShaderModule,
-    surface_format: wgpu::TextureFormat,
+    shader: wgpu::ShaderModuleDescriptor<'a>,
     depth_texture_format: Option<wgpu::TextureFormat>,
     bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
     fragment_entry: Option<&'a str>,
@@ -28,196 +22,148 @@ pub struct RenderPipelineBuilder<'a> {
 }
 
 impl<'a> RenderPipelineBuilder<'a> {
-    pub fn new(
-        device: &'a wgpu::Device,
-        shader: wgpu::ShaderModuleDescriptor,
-        surface_format: wgpu::TextureFormat,
-    ) -> Self {
-        let shader_module = device.create_shader_module(shader);
-
+    pub fn new(shader: wgpu::ShaderModuleDescriptor<'a>) -> Self {
         Self {
-            device,
-            shader_module,
-            surface_format,
-            bind_group_layouts: vec![],
-            depth_texture_format: None,
-            fragment_entry: None,
-            polygon_mode: None,
-            cull_mode: Some(wgpu::Face::Back),
+            shader,
+            depth_texture_format: Default::default(),
+            bind_group_layouts: Default::default(),
+            fragment_entry: Default::default(),
+            polygon_mode: Default::default(),
+            cull_mode: Default::default(),
         }
     }
     pub fn add_bind_group(mut self, bind_group_layout: &'a wgpu::BindGroupLayout) -> Self {
         self.bind_group_layouts.push(bind_group_layout);
-        Self {
-            bind_group_layouts: self.bind_group_layouts,
-            depth_texture_format: self.depth_texture_format,
-            device: self.device,
-            shader_module: self.shader_module,
-            surface_format: self.surface_format,
-            fragment_entry: self.fragment_entry,
-            polygon_mode: self.polygon_mode,
-            cull_mode: self.cull_mode,
-        }
+        Self { ..self }
     }
     pub fn depth(self, depth_format: wgpu::TextureFormat) -> Self {
         Self {
             depth_texture_format: Some(depth_format),
-            bind_group_layouts: self.bind_group_layouts,
-            device: self.device,
-            shader_module: self.shader_module,
-            surface_format: self.surface_format,
-            fragment_entry: self.fragment_entry,
-            polygon_mode: self.polygon_mode,
-            cull_mode: self.cull_mode,
+            ..self
         }
     }
     pub fn fragment_entry(self, fragment_entry: &'a str) -> RenderPipelineBuilder<'a> {
         Self {
             fragment_entry: Some(fragment_entry),
-            depth_texture_format: self.depth_texture_format,
-            bind_group_layouts: self.bind_group_layouts,
-            device: self.device,
-            shader_module: self.shader_module,
-            surface_format: self.surface_format,
-            polygon_mode: self.polygon_mode,
-            cull_mode: self.cull_mode,
+            ..self
         }
     }
     pub fn polygon_mode(self, polygon_mode: wgpu::PolygonMode) -> Self {
         Self {
-            fragment_entry: self.fragment_entry,
-            depth_texture_format: self.depth_texture_format,
-            bind_group_layouts: self.bind_group_layouts,
-            device: self.device,
-            shader_module: self.shader_module,
-            surface_format: self.surface_format,
             polygon_mode: Some(polygon_mode),
-            cull_mode: self.cull_mode,
+            ..self
         }
     }
     pub fn cull_mode(self, cull_mode: Option<wgpu::Face>) -> Self {
-        Self {
-            fragment_entry: self.fragment_entry,
-            depth_texture_format: self.depth_texture_format,
-            bind_group_layouts: self.bind_group_layouts,
-            device: self.device,
-            shader_module: self.shader_module,
-            surface_format: self.surface_format,
-            polygon_mode: self.polygon_mode,
-            cull_mode,
-        }
+        Self { cull_mode, ..self }
     }
 
-    pub fn build<T>(self) -> wgpu::RenderPipeline
+    pub fn build<T>(
+        self,
+        device: &'a wgpu::Device,
+        surface_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline
     where
         T: Clone + Copy + bytemuck::Pod + bytemuck::Zeroable + VertexAttributeLayout,
     {
-        let pipeline_layout = self
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &self.bind_group_layouts,
-                push_constant_ranges: &[],
-            });
+        let module = device.create_shader_module(self.shader);
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &self.bind_group_layouts,
+            push_constant_ranges: &[],
+        });
 
-        self.device
-            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &self.shader_module,
-                    entry_point: "vs_main",
-                    buffers: &[T::layout()],
-                    compilation_options: Default::default(),
-                },
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: self.cull_mode,
-                    polygon_mode: self.polygon_mode.map_or(Default::default(), |m| m),
-                    ..Default::default()
-                },
-                depth_stencil: self.depth_texture_format.map(|depth_texture_format| {
-                    wgpu::DepthStencilState {
-                        format: depth_texture_format,
-                        depth_write_enabled: true,
-                        depth_compare: wgpu::CompareFunction::LessEqual,
-                        stencil: wgpu::StencilState::default(),
-                        bias: wgpu::DepthBiasState::default(),
-                    }
-                }),
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &self.shader_module,
-                    entry_point: self.fragment_entry.map_or("fs_main", |f| f),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: self.surface_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::SrcAlpha,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::Zero,
-                                dst_factor: wgpu::BlendFactor::One,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                        }),
-                        write_mask: wgpu::ColorWrites::all(),
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                multiview: None,
-            })
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &module,
+                entry_point: "vs_main",
+                buffers: &[T::layout()],
+                compilation_options: Default::default(),
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: self.cull_mode,
+                polygon_mode: self.polygon_mode.map_or(Default::default(), |m| m),
+                ..Default::default()
+            },
+            depth_stencil: self.depth_texture_format.map(|depth_texture_format| {
+                wgpu::DepthStencilState {
+                    format: depth_texture_format,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &module,
+                entry_point: self.fragment_entry.map_or("fs_main", |f| f),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::Zero,
+                            dst_factor: wgpu::BlendFactor::One,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                    }),
+                    write_mask: wgpu::ColorWrites::all(),
+                })],
+                compilation_options: Default::default(),
+            }),
+            multiview: None,
+        })
     }
 }
 
+#[derive(Default)]
 pub struct RenderPassBuilder<'a> {
-    clear_color: wgpu::Color,
-    encoder: &'a mut wgpu::CommandEncoder,
-    view: &'a wgpu::TextureView,
+    clear_color: Option<wgpu::Color>,
     depth: Option<&'a wgpu::TextureView>,
 }
 
 impl<'a> RenderPassBuilder<'a> {
-    pub fn new(encoder: &'a mut wgpu::CommandEncoder, view: &'a wgpu::TextureView) -> Self {
-        Self {
-            clear_color: wgpu::Color::default(),
-            encoder,
-            view,
-            depth: None,
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
     pub fn depth(self, depth: &'a wgpu::TextureView) -> Self {
         Self {
-            clear_color: self.clear_color,
-            encoder: self.encoder,
-            view: self.view,
             depth: Some(depth),
+            ..self
         }
     }
     pub fn clear_color(self, clear_color: wgpu::Color) -> Self {
         Self {
-            clear_color,
-            encoder: self.encoder,
-            view: self.view,
-            depth: self.depth,
+            clear_color: Some(clear_color),
+            ..self
         }
     }
-    pub fn build(self) -> wgpu::RenderPass<'a> {
-        self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+    pub fn build(
+        self,
+        encoder: &'a mut wgpu::CommandEncoder,
+        view: &'a wgpu::TextureView,
+    ) -> wgpu::RenderPass<'a> {
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: self.view,
+                view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(self.clear_color),
+                    load: wgpu::LoadOp::Clear(self.clear_color.unwrap_or(Color::BLACK)),
                     store: wgpu::StoreOp::Store,
                 },
             })],

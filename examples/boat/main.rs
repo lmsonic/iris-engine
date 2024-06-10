@@ -62,21 +62,20 @@ impl iris_engine::renderer::app::App for Example {
             .normal_texture(normal)
             .build(device, queue);
         let depth_texture = Texture::depth(device, config.width, config.height);
-        let pipeline =
-            MeshPipelineBuilder::new(device, config.format, &material, &bind_group.layout)
-                .depth(depth_texture.texture.format())
-                .build::<Vertex>();
+        let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+            .depth(depth_texture.texture.format())
+            .build::<Vertex>(device, config.format);
 
         let mut pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
             Some(
-                RenderPipelineWire::new(device, config.format)
+                RenderPipelineWire::new()
                     .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
                     .cull_mode(None)
-                    .build::<Vertex>(),
+                    .build::<Vertex>(device, config.format),
             )
         } else {
             None
@@ -120,7 +119,7 @@ impl iris_engine::renderer::app::App for Example {
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
-            let mut rpass = RenderPassBuilder::new(&mut encoder, view)
+            let mut rpass = RenderPassBuilder::new()
                 .depth(&self.depth_texture.view)
                 .clear_color(wgpu::Color {
                     r: 0.1,
@@ -128,7 +127,7 @@ impl iris_engine::renderer::app::App for Example {
                     b: 0.3,
                     a: 1.0,
                 })
-                .build();
+                .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
             rpass.set_bind_group(1, &self.material.bind_group.bind_group, &[]);
