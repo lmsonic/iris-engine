@@ -3,13 +3,17 @@ struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
+    @location(3) tangent: vec3<f32>,
+    @location(4) bitangent: vec3<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
-    @location(2) uv: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) tangent: vec3<f32>,
+    @location(4) bitangent: vec3<f32>,
 };
 
 
@@ -45,7 +49,7 @@ fn directional_light(input: ptr<function, LightingInput>, material: ptr<function
     let specular_color = (*material).specular_color;
     let specular_exponent = (*material).specular_exponent;
 
-    let light_direction = (camera.view * light.position).xyz - P * light.position.w;
+    let light_direction = (light.position).xyz - P * light.position.w;
     let light_color = light.color_range.rgb;
     let L = normalize(light_direction);
 
@@ -70,7 +74,7 @@ fn point_light(input: ptr<function, LightingInput>, material: ptr<function, Mate
     let specular_color = (*material).specular_color;
     let specular_exponent = (*material).specular_exponent;
 
-    let light_direction = (camera.view * light.position).xyz - P * light.position.w;
+    let light_direction = (light.position).xyz - P * light.position.w;
     let light_color = light.color_range.rgb;
     let L = normalize(light_direction);
 
@@ -102,7 +106,7 @@ fn spot_light(input: ptr<function, LightingInput>, material: ptr<function, Mater
     let specular_color = (*material).specular_color;
     let specular_exponent = (*material).specular_exponent;
 
-    let light_direction = (camera.view * light.position).xyz - P * light.position.w;
+    let light_direction = (light.position).xyz - P * light.position.w;
     let light_color = light.color_range.rgb;
     let L = normalize(light_direction);
 
@@ -150,15 +154,11 @@ fn vs_main(
 ) -> VertexOutput {
     var result: VertexOutput;
     result.clip_position = camera.proj * camera.view * vec4f(in.position, 1.0);
-    result.position = (camera.view * vec4f(in.position, 1.0)).xyz;
-    result.normal = (camera.inv_view * vec4f(in.normal, 0.0)).xyz;
+    result.position = in.position;
+    result.normal = in.normal;
     result.uv = in.uv;
-        // let bitangent = cross(in.normal, in.tangent.xyz) * in.tangent.w;
-    // let tangent_space = transpose(mat3x3<f32>(in.tangent.xyz, bitangent, in.normal));
-    // result.position = vec3f(camera.view * in.position);
-    // result.tangent = in.tangent.xyz;
-    // result.bitangent = bitangent;
-    // result.normal = in.normal;
+    result.tangent = in.tangent;
+    result.bitangent = in.bitangent;
     return result;
 }
 
@@ -175,11 +175,18 @@ struct Material {
 }
     @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Lighting is calculate_ in view space
+    let normal_map = textureSample(normal_map, s_normal_map, in.uv).rgb;
+    let tangent_normal = normal_map;
+    let tangent_to_world = mat3x3<f32>(
+        normalize(in.tangent),
+        normalize(in.bitangent),
+        normalize(in.normal),
+    );
+    let world_normal = tangent_to_world * tangent_normal;
     var lighting_input: LightingInput;
-    lighting_input.normal = normalize(in.normal);
+    lighting_input.normal = normalize(world_normal.xyz);
     lighting_input.position = in.position;
-    lighting_input.view = -in.position;
+    lighting_input.view = camera.position - in.position;
     let diffuse_texture = textureSample(texture, s_texture, in.uv).rgb;
     var material: Material;
     material.diffuse_color = diffuse_texture * diffuse_color;

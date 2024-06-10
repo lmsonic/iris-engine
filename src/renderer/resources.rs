@@ -12,6 +12,7 @@ use wgpu::Extent3d;
 
 use super::buffer::Buffer;
 use super::compute;
+use super::mesh::{compute_tangent_frame, Mesh, Vertex};
 
 pub fn get_max_mip_level_count(width: u32, height: u32) -> u32 {
     bit_width(u32::max(width, height))
@@ -114,7 +115,8 @@ pub fn load_texture(
         bytes_per_row: Some(4 * texture.size().width),
         rows_per_image: Some(texture.size().height),
     };
-    let data = image.as_rgba8().unwrap().as_raw();
+    let binding = image.into_rgba8();
+    let data = binding.as_raw();
     queue.write_texture(destination, data, source, texture.size());
     compute::generate_mipmaps(&texture, device, queue, 0);
 
@@ -270,56 +272,12 @@ pub fn write_mipmaps(queue: &wgpu::Queue, texture: &wgpu::Texture, image: Dynami
         previous_level_pixels = pixels;
     }
 }
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-#[repr(C)]
-pub struct VertexAttribute {
-    pub position: Vec3,
-    pub tangent: Vec3,
-    pub bitangent: Vec3,
-    pub normal: Vec3,
-    pub color: Vec3,
-    pub uv: Vec2,
-}
-
-fn compute_tangent_frame(face: [VertexAttribute; 3], expected_normal: Vec3) -> (Vec3, Vec3) {
-    let e1_pos = face[1].position - face[0].position;
-    let e2_pos = face[2].position - face[0].position;
-
-    let e1_uv = face[1].uv - face[0].uv;
-    let e2_uv = face[2].uv - face[0].uv;
-
-    let mut tangent = (e1_pos * e2_uv.y - e2_pos * e1_uv.y).normalize();
-    let mut bitangent = (e2_pos * e1_uv.x - e1_pos * e2_uv.x).normalize();
-    let mut normal = tangent.cross(bitangent);
-
-    if normal.dot(expected_normal) < 0.0 {
-        tangent = -tangent;
-    }
-
-    normal = expected_normal;
-    tangent = (tangent - tangent.dot(normal) * normal).normalize();
-    bitangent = normal.cross(tangent);
-
-    (tangent, bitangent)
-}
-
-impl VertexAttributeLayout for VertexAttribute {
-    fn layout() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        const ATTRIBUTES: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3,2=>Float32x3,3=>Float32x3,4=>Float32x3,5=>Float32x2];
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTRIBUTES,
-        }
-    }
-}
 
 pub trait VertexAttributeLayout {
     fn layout() -> wgpu::VertexBufferLayout<'static>;
 }
 
-pub fn load_geometry(path: impl AsRef<Path> + Debug) -> (Vec<VertexAttribute>, Vec<u32>) {
+pub fn load_geometry(path: impl AsRef<Path> + Debug) -> Mesh {
     let (models, _) = tobj::load_obj(
         path,
         &tobj::LoadOptions {
@@ -370,12 +328,12 @@ pub fn load_geometry(path: impl AsRef<Path> + Debug) -> (Vec<VertexAttribute>, V
         };
 
         vertices.extend(positions.into_iter().zip(normals).zip(colors).zip(uvs).map(
-            |(((p, n), c), t)| VertexAttribute {
+            |(((p, n), c), t)| Vertex {
                 position: p,
                 tangent: Vec3::Y,
                 bitangent: Vec3::Z,
                 normal: n,
-                color: c,
+                // color: c,
                 uv: t,
             },
         ));
@@ -393,5 +351,5 @@ pub fn load_geometry(path: impl AsRef<Path> + Debug) -> (Vec<VertexAttribute>, V
         }
     }
 
-    (vertices, indices)
+    Mesh::new(vertices, indices)
 }

@@ -4,7 +4,7 @@ use approx::{abs_diff_eq, assert_abs_diff_eq};
 use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
 use hexasphere::shapes::IcoSphere;
 
-use crate::renderer::mesh::{Mesh, Meshable};
+use crate::renderer::mesh::{Mesh, Meshable, Vertex};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
@@ -40,12 +40,29 @@ impl Triangle {
 }
 impl Meshable for Triangle {
     fn mesh(&self) -> Mesh {
-        let vertices = vec![self.v1, self.v2, self.v3];
-        let triangles = vec![0, 1, 2];
         let normal = self.normal();
-        let normals = vec![normal, normal, normal];
-        let uvs = vec![[0.0, 0.0].into(), [0.0, 1.0].into(), [1.0, 0.0].into()];
-        Mesh::new(vertices, triangles, normals, uvs)
+
+        let v1 = Vertex {
+            position: self.v1,
+            normal,
+            uv: [0.0, 0.0].into(),
+            ..Default::default()
+        };
+        let v2 = Vertex {
+            position: self.v2,
+            normal,
+            uv: [0.0, 1.0].into(),
+            ..Default::default()
+        };
+        let v3 = Vertex {
+            position: self.v3,
+            normal,
+            uv: [1.0, 0.0].into(),
+            ..Default::default()
+        };
+        let vertices = vec![v1, v2, v3];
+        let indices = vec![0, 1, 2];
+        Mesh::new(vertices, indices)
     }
 }
 
@@ -115,9 +132,15 @@ impl Meshable for Cuboid {
             ([max.x, min.y, min.z], [0.0, -1.0, 0.0], [0.0, 1.0]),
         ];
 
-        let positions: Vec<Vec3> = vertices.iter().map(|(p, _, _)| Vec3::from(*p)).collect();
-        let normals: Vec<Vec3> = vertices.iter().map(|(_, n, _)| Vec3::from(*n)).collect();
-        let uvs: Vec<_> = vertices.iter().map(|(_, _, uv)| Vec2::from(*uv)).collect();
+        let vertices: Vec<Vertex> = vertices
+            .iter()
+            .map(|(p, n, u)| Vertex {
+                position: Vec3::from(*p),
+                normal: Vec3::from(*n),
+                uv: Vec2::from(*u),
+                ..Default::default()
+            })
+            .collect();
 
         let indices = vec![
             0, 1, 2, 2, 3, 0, // front
@@ -127,7 +150,7 @@ impl Meshable for Cuboid {
             16, 17, 18, 18, 19, 16, // top
             20, 21, 22, 22, 23, 20, // bottom
         ];
-        Mesh::new(positions, indices, normals, uvs)
+        Mesh::new(vertices, indices)
     }
 }
 
@@ -168,21 +191,20 @@ impl Sphere {
 
         let raw_points = generated.raw_points();
 
-        let positions = raw_points
+        let vertices = raw_points
             .iter()
-            .map(|&p| (p * self.radius).into())
-            .collect::<Vec<Vec3>>();
-
-        let normals = raw_points
-            .iter()
-            .copied()
-            .map(Into::into)
-            .collect::<Vec<Vec3>>();
-
-        let uvs = generated
-            .raw_data()
-            .iter()
-            .map(|uv| Vec2::from(*uv))
+            .zip(generated.raw_data())
+            .map(|(pn, uv)| {
+                let position: Vec3 = Vec3::from(*pn) * self.radius;
+                let normal: Vec3 = Vec3::from(*pn);
+                let uv: Vec2 = Vec2::from(*uv);
+                Vertex {
+                    position,
+                    normal,
+                    uv,
+                    ..Default::default()
+                }
+            })
             .collect();
 
         let mut indices = Vec::with_capacity(generated.indices_per_main_triangle() * 20);
@@ -191,8 +213,8 @@ impl Sphere {
             generated.get_indices(i, &mut indices);
         }
 
-        let indices = indices.into_iter().map(|i| i as usize).collect();
-        Mesh::new(positions, indices, normals, uvs)
+        let indices = indices.into_iter().map(|i| i).collect();
+        Mesh::new(vertices, indices)
     }
     pub fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
         // From https://docs.rs/bevy_render/latest/src/bevy_render/mesh/primitives/dim3/sphere.rs.html#182
@@ -205,10 +227,9 @@ impl Sphere {
         let sector_step = 2. * PI / sectors_f32;
         let stack_step = PI / stacks_f32;
 
-        let mut positions: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
-        let mut normals: Vec<Vec3> = Vec::with_capacity(stacks * sectors);
-        let mut uvs: Vec<Vec2> = Vec::with_capacity(stacks * sectors);
-        let mut indices: Vec<usize> = Vec::with_capacity(stacks * sectors * 2 * 3);
+        let mut vertices = Vec::with_capacity(stacks * sectors);
+
+        let mut indices = Vec::with_capacity(stacks * sectors * 2 * 3);
 
         for i in 0..stacks + 1 {
             let stack_angle = PI / 2. - (i as f32) * stack_step;
@@ -219,10 +240,12 @@ impl Sphere {
                 let sector_angle = (j as f32) * sector_step;
                 let x = xy * sector_angle.cos();
                 let z = xy * sector_angle.sin();
-
-                positions.push([x, y, -z].into());
-                normals.push([x * length_inv, y * length_inv, -z * length_inv].into());
-                uvs.push([(j as f32) / sectors_f32, (i as f32) / stacks_f32].into());
+                vertices.push(Vertex {
+                    position: [x, y, -z].into(),
+                    normal: [x * length_inv, y * length_inv, -z * length_inv].into(),
+                    uv: [(j as f32) / sectors_f32, (i as f32) / stacks_f32].into(),
+                    ..Default::default()
+                });
             }
         }
 
@@ -236,21 +259,21 @@ impl Sphere {
             let mut k2 = k1 + sectors + 1;
             for _j in 0..sectors {
                 if i != 0 {
-                    indices.push(k1);
-                    indices.push(k2);
-                    indices.push(k1 + 1);
+                    indices.push(k1 as u32);
+                    indices.push(k2 as u32);
+                    indices.push((k1 + 1) as u32);
                 }
                 if i != stacks - 1 {
-                    indices.push(k1 + 1);
-                    indices.push(k2);
-                    indices.push(k2 + 1);
+                    indices.push((k1 + 1) as u32);
+                    indices.push(k2 as u32);
+                    indices.push((k2 + 1) as u32);
                 }
                 k1 += 1;
                 k2 += 1;
             }
         }
 
-        Mesh::new(positions, indices, normals, uvs)
+        Mesh::new(vertices, indices)
     }
 }
 impl Meshable for Sphere {
