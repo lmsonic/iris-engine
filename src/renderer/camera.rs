@@ -1,5 +1,6 @@
 use std::{f32::consts::FRAC_PI_2, f32::consts::FRAC_PI_4};
 
+use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, Vec3};
 use winit::{
     dpi::PhysicalPosition,
@@ -8,18 +9,41 @@ use winit::{
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbitCamera {
+    projection: Mat4,
     orbit_radius: f32,
     yaw: f32,
     pitch: f32,
     drag: bool,
     last_mouse_pos: PhysicalPosition<f64>,
 }
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct GpuCamera {
+    projection: Mat4,
+    view: Mat4,
+    inv_view: Mat4,
+    position: Vec3,
+    _pad: f32,
+}
 
 impl OrbitCamera {
-    pub fn new(orbit_radius: f32) -> Self {
-        Self {
+    pub fn new(orbit_radius: f32, aspect_ratio: f32) -> Self {
+        let mut camera = Self {
             orbit_radius,
+
             ..Default::default()
+        };
+        camera.set_projection(aspect_ratio);
+        camera
+    }
+    pub fn to_gpu(&self) -> GpuCamera {
+        let view = self.view();
+        GpuCamera {
+            projection: self.projection,
+            view,
+            inv_view: view.inverse().transpose(),
+            position: self.position(),
+            _pad: 0.0,
         }
     }
 
@@ -32,8 +56,8 @@ impl OrbitCamera {
     pub fn view(&self) -> Mat4 {
         Mat4::look_at_rh(self.position(), Vec3::ZERO, Vec3::Y)
     }
-    pub fn projection(&self, aspect_ratio: f32) -> Mat4 {
-        Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 1.0, 10.0)
+    pub fn set_projection(&mut self, aspect_ratio: f32) {
+        self.projection = Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 1.0, 10.0);
     }
 
     pub fn input(&mut self, event: WindowEvent) -> bool {

@@ -1,3 +1,5 @@
+use image::DynamicImage;
+
 use crate::renderer::resources::get_max_mip_level_count;
 
 use super::{compute, resources::load_texture};
@@ -11,10 +13,35 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(path: impl AsRef<Path>, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+    pub fn new(image: DynamicImage, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let (texture, view) = load_texture(image, device, queue);
+
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("Texture"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: texture.mip_level_count() as f32,
+            compare: None,
+            anisotropy_clamp: 1,
+            border_color: None,
+        });
+        Self {
+            texture,
+            view,
+            sampler,
+        }
+    }
+    pub fn from_path(path: impl AsRef<Path>, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let pathbuf = path.as_ref().to_owned();
-        let (texture, view) = load_texture(path, device, queue)
-            .unwrap_or_else(|_| panic!("Could not open {:?}", pathbuf.display()));
+        let image =
+            image::open(&path).unwrap_or_else(|_| panic!("Could not open {:?}", pathbuf.display()));
+
+        let (texture, view) = load_texture(image, device, queue);
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("Texture"),

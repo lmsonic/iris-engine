@@ -5,92 +5,123 @@ pub struct BindGroup {
     pub bind_group: wgpu::BindGroup,
 }
 
-impl BindGroup {
-    pub fn new(
-        device: &wgpu::Device,
-        uniform_buffers: &[&wgpu::Buffer],
-        textures: &[&Texture],
-    ) -> Self {
-        let mut layout_entries = vec![];
-        let mut binding = 0;
-        for _ in uniform_buffers {
-            layout_entries.push(wgpu::BindGroupLayoutEntry {
-                binding,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+pub struct BindGroupBuilder<'a> {
+    counter: u32,
+    layout_entries: Vec<wgpu::BindGroupLayoutEntry>,
+    bind_group_entries: Vec<wgpu::BindGroupEntry<'a>>,
+}
+
+impl<'a> BindGroupBuilder<'a> {
+    pub fn new() -> Self {
+        Self {
+            counter: 0,
+            layout_entries: vec![],
+            bind_group_entries: vec![],
+        }
+    }
+    pub fn uniform(mut self, uniform_buffer: &'a wgpu::Buffer) -> Self {
+        self.layout_entries.push(wgpu::BindGroupLayoutEntry {
+            binding: self.counter,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+        self.bind_group_entries.push(wgpu::BindGroupEntry {
+            binding: self.counter,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: uniform_buffer,
+                offset: 0,
+                size: None,
+            }),
+        });
+        self.counter += 1;
+
+        self
+    }
+
+    pub fn storage_buffer(mut self, storage_buffer: &'a wgpu::Buffer) -> Self {
+        self.layout_entries.push(wgpu::BindGroupLayoutEntry {
+            binding: self.counter,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        });
+        self.bind_group_entries.push(wgpu::BindGroupEntry {
+            binding: self.counter,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: storage_buffer,
+                offset: 0,
+                size: None,
+            }),
+        });
+        self.counter += 1;
+
+        self
+    }
+
+    pub fn texture(mut self, texture: &'a Texture) -> BindGroupBuilder<'a> {
+        self.layout_entries.extend([
+            wgpu::BindGroupLayoutEntry {
+                binding: self.counter,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
                 },
                 count: None,
-            });
-            binding += 1;
-        }
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: self.counter + 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ]);
 
-        for _ in textures {
-            layout_entries.extend([
-                wgpu::BindGroupLayoutEntry {
-                    binding,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: binding + 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ]);
-            binding += 2;
-        }
+        self.bind_group_entries.extend([
+            wgpu::BindGroupEntry {
+                binding: self.counter,
+                resource: wgpu::BindingResource::TextureView(&texture.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: self.counter + 1,
+                resource: wgpu::BindingResource::Sampler(&texture.sampler),
+            },
+        ]);
+        self.counter += 2;
 
+        self
+    }
+
+    pub fn build(self, device: &wgpu::Device) -> BindGroup {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Uniform Bind Group Layout"),
-            entries: &layout_entries,
+            label: None,
+            entries: &self.layout_entries,
         });
-        binding = 0;
-        let mut bind_group_entries = vec![];
-
-        for uniforms in uniform_buffers {
-            bind_group_entries.push(wgpu::BindGroupEntry {
-                binding,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: uniforms,
-                    offset: 0,
-                    size: None,
-                }),
-            });
-            binding += 1;
-        }
-
-        for texture in textures {
-            bind_group_entries.extend([
-                wgpu::BindGroupEntry {
-                    binding,
-                    resource: wgpu::BindingResource::TextureView(&texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: binding + 1,
-                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                },
-            ]);
-            binding += 2;
-        }
-
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Uniform Bind Group Layout"),
+            label: Some("Bind Group Layout"),
 
             layout: &bind_group_layout,
-            entries: &bind_group_entries,
+            entries: &self.bind_group_entries,
         });
-        Self {
+        BindGroup {
             layout: bind_group_layout,
             bind_group,
         }
+    }
+}
+
+impl<'a> Default for BindGroupBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
     }
 }

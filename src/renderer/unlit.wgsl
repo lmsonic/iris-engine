@@ -2,7 +2,7 @@
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
+    // @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
 };
 
@@ -11,7 +11,6 @@ struct VertexOutput {
     @location(1) uv: vec2<f32>,
 };
 
-
 struct Camera {
     proj: mat4x4<f32>,
     view: mat4x4<f32>,
@@ -19,8 +18,10 @@ struct Camera {
     position: vec3f,
 }
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var texture: texture_2d<f32>;
-@group(0) @binding(2) var s_texture: sampler;
+@group(1) @binding(0) var texture: texture_2d<f32>;
+@group(1) @binding(1) var s_texture: sampler;
+@group(1) @binding(2) var<uniform> diffuse_color: vec3f;
+
 @vertex
 fn vs_main(
     in: VertexInput,
@@ -34,8 +35,8 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let diffuse_color = textureSample(texture, s_texture, in.uv).rgb;
-    return vec4f(diffuse_color, 1.0);
+    let diffuse = textureSample(texture, s_texture, in.uv).rgb * diffuse_color;
+    return vec4f(diffuse, 1.0);
 }
 
 @fragment

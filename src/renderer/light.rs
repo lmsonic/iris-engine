@@ -59,7 +59,8 @@ impl PointLight {
                 self.attenuation[0],
                 self.attenuation[1],
                 self.attenuation[2],
-                0.0,
+                // To flag its a point light
+                -1.0,
             ),
         }
     }

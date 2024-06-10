@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat2, Mat3, Vec2, Vec3, Vec4};
-use itertools::{izip, multizip};
+use itertools::multizip;
 
 use super::resources::VertexAttributeLayout;
 
@@ -19,8 +19,8 @@ pub struct Vertex {
 impl VertexAttributeLayout for Vertex {
     fn layout() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
-        const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
-            wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3,2=>Float32x2];
+        const ATTRIBUTES: [wgpu::VertexAttribute; 4] =
+            wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x3,2=>Float32x2,3=>Float32x4];
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -64,6 +64,7 @@ impl Mesh {
             uvs,
             tangents: vec![],
         };
+
         mesh.recalculate_tangents();
         mesh
     }
@@ -72,7 +73,6 @@ impl Mesh {
         self.tangents = vec![Vec4::ZERO; vertex_count];
         let mut tangents = vec![Vec3::ZERO; vertex_count];
         let mut bitangents = vec![Vec3::ZERO; vertex_count];
-
         self.indices.chunks_exact(3).for_each(|t| {
             let i1 = t[0];
             let i2 = t[1];
@@ -107,10 +107,13 @@ impl Mesh {
             bitangents[i3] = bitangent;
         });
         for (i, tangent_bitangent) in self.tangents.iter_mut().enumerate() {
+            if i == 0 || i == vertex_count - 1 {
+                continue;
+            }
             fn orthonormalize(matrix: Mat3) -> Mat3 {
                 let v1 = matrix.x_axis;
                 let v2 = matrix.y_axis.reject_from(v1);
-                let v3 = matrix.y_axis.reject_from(v1).reject_from(v2);
+                let v3 = matrix.z_axis.reject_from(v1).reject_from(v2);
                 Mat3::from_cols(v1, v2, v3)
             }
             let normal = self.normals[i];
@@ -118,7 +121,7 @@ impl Mesh {
             let bitangent = bitangents[i];
             let tangent_space =
                 orthonormalize(Mat3::from_cols(tangent, bitangent, normal)).transpose();
-            let tangent = tangent_space.col(0);
+            let tangent = tangent_space.row(0);
             let bitangent_sign = tangent_space.determinant();
             *tangent_bitangent = tangent.extend(bitangent_sign);
         }

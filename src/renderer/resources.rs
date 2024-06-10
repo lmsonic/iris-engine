@@ -5,9 +5,7 @@ use glam::{Vec2, Vec3};
 use image::flat::SampleLayout;
 use image::imageops::thumbnail;
 use image::{DynamicImage, FlatSamples, GrayImage, RgbImage, Rgba};
-use palette::encoding::Linear;
-use palette::luma::Luma;
-use palette::white_point::D65;
+
 use palette::{LinLuma, LinSrgb, Srgb, SrgbLuma};
 use pollster::FutureExt;
 use wgpu::Extent3d;
@@ -81,16 +79,13 @@ mod tests {
 }
 
 pub fn load_texture(
-    path: impl AsRef<Path>,
+    image: DynamicImage,
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-) -> image::ImageResult<(wgpu::Texture, wgpu::TextureView)> {
-    let image = image::open(&path)?;
-    let label = path.as_ref().to_str();
-    let texture_label = label.map(|s| format!("{s} Texture"));
+) -> (wgpu::Texture, wgpu::TextureView) {
     let mip_level_count = get_max_mip_level_count(image.width(), image.height());
     let texture_descriptor = wgpu::TextureDescriptor {
-        label: texture_label.as_deref(),
+        label: None,
         size: wgpu::Extent3d {
             width: image.width(),
             height: image.height(),
@@ -123,9 +118,8 @@ pub fn load_texture(
     queue.write_texture(destination, data, source, texture.size());
     compute::generate_mipmaps(&texture, device, queue, 0);
 
-    let view_label = label.map(|s| format!("{s} Texture View"));
     let view = texture.create_view(&wgpu::TextureViewDescriptor {
-        label: view_label.as_deref(),
+        label: None,
         format: Some(texture.format()),
         dimension: Some(wgpu::TextureViewDimension::D2),
         aspect: wgpu::TextureAspect::All,
@@ -134,7 +128,7 @@ pub fn load_texture(
         base_array_layer: 0,
         array_layer_count: Some(1),
     });
-    Ok((texture, view))
+    (texture, view)
 }
 
 pub fn get_texture_data(

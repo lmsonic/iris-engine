@@ -49,13 +49,13 @@ impl IndexBuffer {
 }
 
 #[derive(Debug)]
-pub struct DataBuffer<T> {
+pub struct UniformBuffer<T> {
     pub data: T,
     pub buffer: wgpu::Buffer,
 }
 
-impl<T> DataBuffer<T> {
-    pub fn new(data: T, device: &wgpu::Device, usage: wgpu::BufferUsages) -> Self
+impl<T> UniformBuffer<T> {
+    pub fn new(data: T, device: &wgpu::Device) -> Self
     where
         T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
     {
@@ -66,11 +66,11 @@ impl<T> DataBuffer<T> {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&[data]),
-            usage,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         Self { data, buffer }
     }
-    pub fn from_slice<U>(data: T, device: &wgpu::Device, usage: wgpu::BufferUsages) -> Self
+    pub fn from_slice<U>(data: T, device: &wgpu::Device) -> Self
     where
         U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
         T: AsRef<[U]>,
@@ -82,20 +82,56 @@ impl<T> DataBuffer<T> {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(data.as_ref()),
-            usage,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         Self { data, buffer }
     }
 
-    pub fn uniform(data: T, device: &wgpu::Device) -> Self
+    pub fn update(&self, queue: &wgpu::Queue)
     where
         T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
     {
-        Self::new(
-            data,
-            device,
-            wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-        )
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data]));
+    }
+}
+
+#[derive(Debug)]
+pub struct StorageBuffer<T> {
+    pub data: T,
+    pub buffer: wgpu::Buffer,
+}
+
+impl<T> StorageBuffer<T> {
+    pub fn new(data: T, device: &wgpu::Device) -> Self
+    where
+        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+    {
+        assert!(
+            mem::align_of::<T>() % 4 == 0,
+            "Data alignment needs to be multiple of 4"
+        );
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&[data]),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+        });
+        Self { data, buffer }
+    }
+    pub fn from_slice<U>(data: T, device: &wgpu::Device) -> Self
+    where
+        U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        T: AsRef<[U]>,
+    {
+        assert!(
+            mem::align_of::<T>() % 4 == 0,
+            "Data alignment needs to be multiple of 4"
+        );
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(data.as_ref()),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+        });
+        Self { data, buffer }
     }
 
     pub fn update(&self, queue: &wgpu::Queue)
@@ -111,8 +147,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(device: &wgpu::Device, size: u64, usage: wgpu::BufferUsages) -> Self
-where {
+    pub fn new(device: &wgpu::Device, size: u64, usage: wgpu::BufferUsages) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             usage,
@@ -120,21 +155,5 @@ where {
             mapped_at_creation: false,
         });
         Self { buffer }
-    }
-
-    pub fn initialize<T>(self, data: T, queue: &wgpu::Queue) -> DataBuffer<T>
-    where
-        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
-    {
-        assert!(
-            mem::align_of::<T>() % 4 == 0,
-            "Data alignment needs to be multiple of 4"
-        );
-
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
-        DataBuffer {
-            data,
-            buffer: self.buffer,
-        }
     }
 }

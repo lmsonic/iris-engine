@@ -5,6 +5,7 @@ pub mod camera;
 pub mod color;
 pub mod compute;
 pub mod light;
+pub mod material;
 pub mod mesh;
 pub mod render_pipeline;
 pub mod resources;

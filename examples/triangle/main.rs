@@ -1,56 +1,27 @@
-use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec3};
+use glam::Vec3;
 use iris_engine::{
     geometry::shapes::Triangle,
     renderer::{
-        bind_group::BindGroup,
-        buffer::{DataBuffer, IndexBuffer, VertexBuffer},
-        camera::OrbitCamera,
+        bind_group::{BindGroup, BindGroupBuilder},
+        buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
+        camera::{GpuCamera, OrbitCamera},
+        color::Color,
+        material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
-        render_pipeline::{RenderPassBuilder, RenderPipelineBuilder},
+        render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
     },
 };
-
-use wgpu::include_wgsl;
 
 struct Example {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer,
     bind_group: BindGroup,
     camera: OrbitCamera,
-    camera_uniform: DataBuffer<CameraUniform>,
+    camera_uniform: UniformBuffer<GpuCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
-struct CameraUniform {
-    projection: Mat4,
-    view: Mat4,
-    inverse_view: Mat4,
-    position: Vec3,
-    _pad: f32,
-}
-
-impl CameraUniform {
-    fn set_view(&mut self, view: Mat4) {
-        self.view = view;
-        self.inverse_view = view.inverse().transpose();
-    }
-}
-
-impl CameraUniform {
-    fn new(projection: Mat4, view: Mat4, position: Vec3) -> Self {
-        Self {
-            projection,
-            view,
-            inverse_view: view.inverse().transpose(),
-            position,
-            _pad: 0.0,
-        }
-    }
+    material: UnlitMaterial,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -69,35 +40,30 @@ impl iris_engine::renderer::app::App for Example {
         let indices = triangle.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
         let index_buffer = IndexBuffer::new(indices, device);
-        let camera = OrbitCamera::new(2.0);
-
         let aspect_ratio = config.width as f32 / config.height as f32;
-        let camera_uniform = DataBuffer::uniform(
-            CameraUniform::new(
-                camera.projection(aspect_ratio),
-                camera.view(),
-                camera.position(),
-            ),
-            device,
-        );
+        let camera = OrbitCamera::new(2.0, aspect_ratio);
 
-        let texture = Texture::new("checkerboard.png", device, queue);
-        let bind_group = BindGroup::new(device, &[&camera_uniform.buffer], &[&texture]);
-        let shader = include_wgsl!("../unlit.wgsl");
-        let pipeline = RenderPipelineBuilder::new(device, shader.clone(), config.format)
-            .bind_group(&bind_group.layout)
-            .fragment_entry("fs_main")
-            .cull_mode(None)
-            .build::<Vertex>();
+        let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
+
+        let texture = Texture::from_path("checkerboard.png", device, queue);
+
+        let bind_group = BindGroupBuilder::new()
+            .uniform(&camera_uniform.buffer)
+            .build(device);
+
+        let material = UnlitMaterialBuilder::new().build(device, queue);
+        let pipeline =
+            MeshPipelineBuilder::new(device, config.format, &material, &bind_group.layout)
+                .cull_mode(None)
+                .build::<Vertex>();
 
         let pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
             Some(
-                RenderPipelineBuilder::new(device, shader, config.format)
-                    .bind_group(&bind_group.layout)
-                    .fragment_entry("fs_wire")
+                RenderPipelineWire::new(device, config.format)
+                    .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
                     .cull_mode(None)
                     .build::<Vertex>(),
@@ -115,13 +81,13 @@ impl iris_engine::renderer::app::App for Example {
             camera_uniform,
             pipeline,
             pipeline_wire,
+            material,
         }
     }
 
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
         if self.camera.input(event) {
-            self.camera_uniform.data.position = self.camera.position();
-            self.camera_uniform.data.set_view(self.camera.view());
+            self.camera_uniform.data = self.camera.to_gpu();
             self.camera_uniform.update(queue);
         }
     }
@@ -133,7 +99,8 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera_uniform.data.projection = self.camera.projection(aspect_ratio);
+        self.camera.set_projection(aspect_ratio);
+        self.camera_uniform.data = self.camera.to_gpu();
         self.camera_uniform.update(queue);
     }
 
@@ -149,9 +116,9 @@ impl iris_engine::renderer::app::App for Example {
                     a: 1.0,
                 })
                 .build();
-
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
+            rpass.set_bind_group(1, &self.material.bind_group.bind_group, &[]);
             rpass.set_index_buffer(
                 self.index_buffer.buffer.slice(..),
                 wgpu::IndexFormat::Uint32,

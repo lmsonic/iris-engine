@@ -1,11 +1,27 @@
+use wgpu::include_wgsl;
+
 use super::resources::VertexAttributeLayout;
+
+pub struct RenderPipelineWire;
+
+impl RenderPipelineWire {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(
+        device: &wgpu::Device,
+        surface_format: wgpu::TextureFormat,
+    ) -> RenderPipelineBuilder {
+        let shader = include_wgsl!("wire.wgsl");
+        RenderPipelineBuilder::new(device, shader, surface_format)
+            .polygon_mode(wgpu::PolygonMode::Line)
+    }
+}
 
 pub struct RenderPipelineBuilder<'a> {
     device: &'a wgpu::Device,
     shader_module: wgpu::ShaderModule,
     surface_format: wgpu::TextureFormat,
     depth_texture_format: Option<wgpu::TextureFormat>,
-    bind_group_layout: Option<&'a wgpu::BindGroupLayout>,
+    bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
     fragment_entry: Option<&'a str>,
     polygon_mode: Option<wgpu::PolygonMode>,
     cull_mode: Option<wgpu::Face>,
@@ -23,16 +39,17 @@ impl<'a> RenderPipelineBuilder<'a> {
             device,
             shader_module,
             surface_format,
-            bind_group_layout: None,
+            bind_group_layouts: vec![],
             depth_texture_format: None,
             fragment_entry: None,
             polygon_mode: None,
             cull_mode: Some(wgpu::Face::Back),
         }
     }
-    pub fn bind_group(self, bind_group_layout: &'a wgpu::BindGroupLayout) -> Self {
+    pub fn add_bind_group(mut self, bind_group_layout: &'a wgpu::BindGroupLayout) -> Self {
+        self.bind_group_layouts.push(bind_group_layout);
         Self {
-            bind_group_layout: Some(bind_group_layout),
+            bind_group_layouts: self.bind_group_layouts,
             depth_texture_format: self.depth_texture_format,
             device: self.device,
             shader_module: self.shader_module,
@@ -45,7 +62,7 @@ impl<'a> RenderPipelineBuilder<'a> {
     pub fn depth(self, depth_format: wgpu::TextureFormat) -> Self {
         Self {
             depth_texture_format: Some(depth_format),
-            bind_group_layout: self.bind_group_layout,
+            bind_group_layouts: self.bind_group_layouts,
             device: self.device,
             shader_module: self.shader_module,
             surface_format: self.surface_format,
@@ -58,7 +75,7 @@ impl<'a> RenderPipelineBuilder<'a> {
         Self {
             fragment_entry: Some(fragment_entry),
             depth_texture_format: self.depth_texture_format,
-            bind_group_layout: self.bind_group_layout,
+            bind_group_layouts: self.bind_group_layouts,
             device: self.device,
             shader_module: self.shader_module,
             surface_format: self.surface_format,
@@ -70,7 +87,7 @@ impl<'a> RenderPipelineBuilder<'a> {
         Self {
             fragment_entry: self.fragment_entry,
             depth_texture_format: self.depth_texture_format,
-            bind_group_layout: self.bind_group_layout,
+            bind_group_layouts: self.bind_group_layouts,
             device: self.device,
             shader_module: self.shader_module,
             surface_format: self.surface_format,
@@ -82,7 +99,7 @@ impl<'a> RenderPipelineBuilder<'a> {
         Self {
             fragment_entry: self.fragment_entry,
             depth_texture_format: self.depth_texture_format,
-            bind_group_layout: self.bind_group_layout,
+            bind_group_layouts: self.bind_group_layouts,
             device: self.device,
             shader_module: self.shader_module,
             surface_format: self.surface_format,
@@ -99,7 +116,7 @@ impl<'a> RenderPipelineBuilder<'a> {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &self.bind_group_layout.map_or(vec![], |b| vec![b]),
+                bind_group_layouts: &self.bind_group_layouts,
                 push_constant_ranges: &[],
             });
 
