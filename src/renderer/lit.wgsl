@@ -176,7 +176,7 @@ struct Material {
     @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let normal_map = textureSample(normal_map, s_normal_map, in.uv).rgb;
-    let tangent_normal = normal_map;
+    let tangent_normal = normal_map * 2.0 - 1.0;
     let tangent_to_world = mat3x3<f32>(
         normalize(in.tangent),
         normalize(in.bitangent),

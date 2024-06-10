@@ -182,6 +182,7 @@ pub struct RenderPassBuilder<'a> {
     clear_color: wgpu::Color,
     encoder: &'a mut wgpu::CommandEncoder,
     view: &'a wgpu::TextureView,
+    depth: Option<&'a wgpu::TextureView>,
 }
 
 impl<'a> RenderPassBuilder<'a> {
@@ -190,6 +191,15 @@ impl<'a> RenderPassBuilder<'a> {
             clear_color: wgpu::Color::default(),
             encoder,
             view,
+            depth: None,
+        }
+    }
+    pub fn depth(self, depth: &'a wgpu::TextureView) -> Self {
+        Self {
+            clear_color: self.clear_color,
+            encoder: self.encoder,
+            view: self.view,
+            depth: Some(depth),
         }
     }
     pub fn clear_color(self, clear_color: wgpu::Color) -> Self {
@@ -197,6 +207,7 @@ impl<'a> RenderPassBuilder<'a> {
             clear_color,
             encoder: self.encoder,
             view: self.view,
+            depth: self.depth,
         }
     }
     pub fn build(self) -> wgpu::RenderPass<'a> {
@@ -210,7 +221,16 @@ impl<'a> RenderPassBuilder<'a> {
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: self.depth.map(|view| {
+                wgpu::RenderPassDepthStencilAttachment {
+                    view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         })

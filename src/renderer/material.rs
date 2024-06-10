@@ -97,7 +97,7 @@ impl LitMaterialBuilder {
     }
     pub fn normal_texture(self, normal_texture: Texture) -> Self {
         Self {
-            diffuse_texture: Some(normal_texture),
+            normal_map: Some(normal_texture),
             ..self
         }
     }
@@ -126,7 +126,7 @@ impl LitMaterialBuilder {
         let specular_exponent = UniformBuffer::new(self.specular_exponent.unwrap_or(100.0), device);
         let normal_map = self.normal_map.unwrap_or_else(|| {
             let default_normal_map: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into();
+                ImageBuffer::from_pixel(2, 2, image::Rgba([127_u8, 127_u8, 127_u8, 255_u8])).into();
             Texture::new(default_normal_map, device, queue)
         });
         let bind_group = BindGroupBuilder::new()

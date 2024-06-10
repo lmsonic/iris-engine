@@ -71,8 +71,8 @@ impl iris_engine::renderer::app::App for Example {
         let texture = Texture::from_path("checkerboard.png", device, queue);
         let normal = Texture::from_path("normal.jpg", device, queue);
         let material = LitMaterialBuilder::new()
-            // .diffuse_texture(texture)
-            .normal_texture(normal)
+            .diffuse_texture(texture)
+            // .normal_texture(normal)
             .build(device, queue);
         let pipeline =
             MeshPipelineBuilder::new(device, config.format, &material, &bind_group.layout)
