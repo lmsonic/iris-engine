@@ -1,17 +1,14 @@
 use glam::Vec3;
-use iris_engine::{
-    geometry::shapes::Cuboid,
-    renderer::{
-        bind_group::{BindGroup, BindGroupBuilder},
-        buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
-        camera::{GpuCamera, OrbitCamera},
-        color::Color,
-        light::{DirectionalLight, PointLight, SpotLight},
-        material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
-        mesh::{Mesh, Meshable, Vertex},
-        render_pipeline::{RenderPassBuilder, RenderPipelineWire},
-        texture::Texture,
-    },
+use iris_engine::renderer::{
+    bind_group::{BindGroup, BindGroupBuilder},
+    buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
+    camera::{GpuCamera, OrbitCamera},
+    color::Color,
+    light::PointLight,
+    material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
+    mesh::{Mesh, Vertex},
+    render_pipeline::{RenderPassBuilder, RenderPipelineWire},
+    texture::Texture,
 };
 
 struct Example {
@@ -66,7 +63,7 @@ impl iris_engine::renderer::app::App for Example {
             .depth(depth_texture.texture.format())
             .build::<Vertex>(device, config.format);
 
-        let mut pipeline_wire = if device
+        let mut _pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
@@ -80,7 +77,7 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
-        pipeline_wire = None;
+        _pipeline_wire = None;
 
         // Done
         Example {
@@ -90,7 +87,7 @@ impl iris_engine::renderer::app::App for Example {
             camera,
             camera_uniform,
             pipeline,
-            pipeline_wire,
+            pipeline_wire: _pipeline_wire,
             material,
             depth_texture,
         }

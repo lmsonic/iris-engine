@@ -5,11 +5,9 @@ use iris_engine::{
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
         camera::{GpuCamera, OrbitCamera},
-        color::Color,
         material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
-        texture::Texture,
     },
 };
 
@@ -44,8 +42,6 @@ impl iris_engine::renderer::app::App for Example {
         let camera = OrbitCamera::new(2.0, aspect_ratio);
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
-
-        let texture = Texture::from_path("checkerboard.png", device, queue);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)

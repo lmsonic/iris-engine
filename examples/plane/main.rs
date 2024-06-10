@@ -4,7 +4,7 @@ use iris_engine::renderer::{
     buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
     camera::{GpuCamera, OrbitCamera},
     color::Color,
-    light::{DirectionalLight, PointLight, SpotLight},
+    light::PointLight,
     material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -43,23 +43,9 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
 
-        let directional_light = DirectionalLight::new(Color::RED, Vec3::ONE);
         let point_light = PointLight::new(Color::WHITE, Vec3::ONE);
-        let spot_light = SpotLight::new(
-            Color::BLUE,
-            Vec3::Y * 2.0,
-            Vec3::NEG_Y,
-            100.0,
-            f32::to_radians(45.0),
-        );
-        let light_storage = StorageBuffer::new(
-            [
-                // directional_light.to_gpu(),
-                point_light.to_gpu(),
-                // spot_light.to_gpu(),
-            ],
-            device,
-        );
+
+        let light_storage = StorageBuffer::new([point_light.to_gpu()], device);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
@@ -74,7 +60,7 @@ impl iris_engine::renderer::app::App for Example {
         let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
             .build::<Vertex>(device, config.format);
 
-        let mut pipeline_wire = if device
+        let mut _pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
@@ -88,7 +74,7 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
-        pipeline_wire = None;
+        _pipeline_wire = None;
 
         // Done
         Example {
@@ -98,7 +84,7 @@ impl iris_engine::renderer::app::App for Example {
             camera,
             camera_uniform,
             pipeline,
-            pipeline_wire,
+            pipeline_wire: _pipeline_wire,
             material,
         }
     }

@@ -213,7 +213,7 @@ impl Sphere {
             generated.get_indices(i, &mut indices);
         }
 
-        let indices = indices.into_iter().map(|i| i).collect();
+        let indices = indices.into_iter().collect();
         Mesh::new(vertices, indices)
     }
     pub fn uv(&self, sectors: usize, stacks: usize) -> Mesh {

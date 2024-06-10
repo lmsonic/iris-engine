@@ -1,8 +1,7 @@
 use std::{fmt::Debug, path::Path};
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat2, Mat3, Vec2, Vec3, Vec4};
-use itertools::multizip;
+use glam::{Vec2, Vec3};
 
 use super::resources::{load_geometry, VertexAttributeLayout};
 
@@ -87,8 +86,8 @@ impl Mesh {
             let v1 = self.vertices[i[0] as usize];
             let v2 = self.vertices[i[1] as usize];
             let v3 = self.vertices[i[2] as usize];
-            for j in 0..3 {
-                let v = &mut self.vertices[i[j] as usize];
+            for j in i.iter().take(3) {
+                let v = &mut self.vertices[*j as usize];
                 let (tangent, bitangent) = compute_tangent_frame([v1, v2, v3], v.normal);
                 v.tangent = tangent;
                 v.bitangent = bitangent;

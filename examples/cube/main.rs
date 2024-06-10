@@ -5,7 +5,6 @@ use iris_engine::{
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
         camera::{GpuCamera, OrbitCamera},
-        color::Color,
         material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
