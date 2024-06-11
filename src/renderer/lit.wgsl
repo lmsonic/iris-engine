@@ -61,8 +61,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var lighting = vec3f(0.0);
     // Lighting is calculated in view space
-    let P = normalize(world_normal.xyz);
-    let N = in.position;
+    let N = normalize(world_normal.xyz);
+    let P = in.position;
     let V = camera.position - in.position;
 
     let diffuse_texture = textureSample(texture, s_texture, in.uv).rgb;
