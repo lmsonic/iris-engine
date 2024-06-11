@@ -6,7 +6,7 @@ use iris_engine::{
         buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
         camera::{GpuCamera, OrbitCamera},
         color::Color,
-        light::{DirectionalLight, PointLight, SpotLight},
+        light::DirectionalLight,
         material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
