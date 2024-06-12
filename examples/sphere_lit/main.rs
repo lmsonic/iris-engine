@@ -55,8 +55,8 @@ impl iris_engine::renderer::app::App for Example {
             .uniform(&camera_uniform.buffer)
             .storage_buffer(&light_storage.buffer)
             .build(device);
-        let texture = Texture::from_path("heightmap.png", device, queue);
-        let normal = Texture::from_path("heightmap_normal.png", device, queue);
+        let texture = Texture::from_path("examples/bricks.jpg", device, queue);
+        let normal = Texture::from_path("examples/bricks_normal.jpg", device, queue);
         let material = LitMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)

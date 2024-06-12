@@ -1,15 +1,14 @@
 use glam::Vec3;
-use iris_engine::{
-    geometry::shapes::Cuboid,
-    renderer::{
-        bind_group::{BindGroup, BindGroupBuilder},
-        buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
-        camera::{GpuCamera, OrbitCamera},
-        material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
-        mesh::{Meshable, Vertex},
-        render_pipeline::{RenderPassBuilder, RenderPipelineWire},
-        texture::Texture,
-    },
+use iris_engine::renderer::{
+    bind_group::{BindGroup, BindGroupBuilder},
+    buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
+    camera::{GpuCamera, OrbitCamera},
+    color::Color,
+    light::PointLight,
+    material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
+    mesh::{Mesh, Vertex},
+    render_pipeline::{RenderPassBuilder, RenderPipelineWire},
+    texture::Texture,
 };
 
 struct Example {
@@ -20,7 +19,8 @@ struct Example {
     camera_uniform: UniformBuffer<GpuCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
-    material: UnlitMaterial,
+    material: PbrMaterial,
+    depth_texture: Texture,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -34,9 +34,9 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Self {
-        let cube = Cuboid::new(Vec3::splat(1.0)).mesh();
-        let vertices = cube.vertices();
-        let indices = cube.indices();
+        let boat = Mesh::from_obj("examples/boat/boat.obj");
+        let vertices = boat.vertices();
+        let indices = boat.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
         let index_buffer = IndexBuffer::new(indices, device);
         let aspect_ratio = config.width as f32 / config.height as f32;
@@ -44,19 +44,26 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
 
-        let texture = Texture::from_path("examples/checkerboard.png", device, queue);
+        let point_light = PointLight::new(Color::WHITE, Vec3::Y * 2.0);
+
+        let light_storage = StorageBuffer::new([point_light.to_gpu()], device);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
+            .storage_buffer(&light_storage.buffer)
             .build(device);
-
-        let material = UnlitMaterialBuilder::new()
+        let texture = Texture::from_path("examples/boat/boat.jpg", device, queue);
+        let normal = Texture::from_path("examples/boat/boat.png", device, queue);
+        let material = PbrMaterialBuilder::new()
             .diffuse_texture(texture)
+            .normal_texture(normal)
             .build(device, queue);
+        let depth_texture = Texture::depth(device, config.width, config.height);
         let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+            .depth(depth_texture.texture.format())
             .build::<Vertex>(device, config.format);
 
-        let pipeline_wire = if device
+        let mut _pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
@@ -70,6 +77,7 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
+        _pipeline_wire = None;
 
         // Done
         Example {
@@ -79,8 +87,9 @@ impl iris_engine::renderer::app::App for Example {
             camera,
             camera_uniform,
             pipeline,
-            pipeline_wire,
+            pipeline_wire: _pipeline_wire,
             material,
+            depth_texture,
         }
     }
 
@@ -108,6 +117,7 @@ impl iris_engine::renderer::app::App for Example {
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let mut rpass = RenderPassBuilder::new()
+                .depth(&self.depth_texture.view)
                 .clear_color(wgpu::Color {
                     r: 0.1,
                     g: 0.2,

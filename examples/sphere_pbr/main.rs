@@ -1,11 +1,15 @@
 use glam::Vec3;
 use iris_engine::{
-    geometry::shapes::Cuboid,
+    geometry::shapes::Sphere,
     renderer::{
         bind_group::{BindGroup, BindGroupBuilder},
-        buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
+        buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
         camera::{GpuCamera, OrbitCamera},
-        material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
+        color::Color,
+        light::DirectionalLight,
+        material::{
+            LitMaterial, LitMaterialBuilder, MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder,
+        },
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
@@ -20,7 +24,8 @@ struct Example {
     camera_uniform: UniformBuffer<GpuCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
-    material: UnlitMaterial,
+    material: PbrMaterial,
+    depth_texture: Texture,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -34,7 +39,7 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Self {
-        let cube = Cuboid::new(Vec3::splat(1.0)).mesh();
+        let cube = Sphere::new(1.0).mesh();
         let vertices = cube.vertices();
         let indices = cube.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
@@ -44,19 +49,27 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
 
-        let texture = Texture::from_path("examples/checkerboard.png", device, queue);
+        let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
+
+        let light_storage = StorageBuffer::new([directional_light.to_gpu()], device);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
+            .storage_buffer(&light_storage.buffer)
             .build(device);
-
-        let material = UnlitMaterialBuilder::new()
+        let texture = Texture::from_path("examples/bricks.jpg", device, queue);
+        let normal = Texture::from_path("examples/bricks_normal.jpg", device, queue);
+        let material = PbrMaterialBuilder::new()
             .diffuse_texture(texture)
+            .normal_texture(normal)
             .build(device, queue);
+        let depth_texture = Texture::depth(device, config.width, config.height);
+
         let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+            .depth(depth_texture.texture.format())
             .build::<Vertex>(device, config.format);
 
-        let pipeline_wire = if device
+        let mut _pipeline_wire = if device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
         {
@@ -70,6 +83,7 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
+        _pipeline_wire = None;
 
         // Done
         Example {
@@ -79,8 +93,9 @@ impl iris_engine::renderer::app::App for Example {
             camera,
             camera_uniform,
             pipeline,
-            pipeline_wire,
+            pipeline_wire: _pipeline_wire,
             material,
+            depth_texture,
         }
     }
 
@@ -114,6 +129,7 @@ impl iris_engine::renderer::app::App for Example {
                     b: 0.3,
                     a: 1.0,
                 })
+                .depth(&self.depth_texture.view)
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);

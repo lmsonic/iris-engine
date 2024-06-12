@@ -34,7 +34,7 @@ impl iris_engine::renderer::app::App for Example {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Self {
-        let boat = Mesh::from_obj("examples/boat/boat/boat.obj");
+        let boat = Mesh::from_obj("examples/boat/boat.obj");
         let vertices = boat.vertices();
         let indices = boat.indices();
         let vertex_buffer = VertexBuffer::new(vertices, device);
@@ -52,8 +52,8 @@ impl iris_engine::renderer::app::App for Example {
             .uniform(&camera_uniform.buffer)
             .storage_buffer(&light_storage.buffer)
             .build(device);
-        let texture = Texture::from_path("examples/boat/boat/boat.jpg", device, queue);
-        let normal = Texture::from_path("examples/boat/boat/boat.png", device, queue);
+        let texture = Texture::from_path("examples/boat/boat.jpg", device, queue);
+        let normal = Texture::from_path("examples/boat/boat.png", device, queue);
         let material = LitMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)

@@ -57,7 +57,7 @@ impl OrbitCamera {
         Mat4::look_at_rh(self.position(), Vec3::ZERO, Vec3::Y)
     }
     pub fn set_projection(&mut self, aspect_ratio: f32) {
-        self.projection = Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 1.0, 10.0);
+        self.projection = Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 0.1, 10.0);
     }
 
     pub fn input(&mut self, event: WindowEvent) -> bool {
