@@ -1,15 +1,17 @@
 use std::{result::Result, sync::Arc, time::Instant};
 
+use egui_wgpu::ScreenDescriptor;
 use wgpu::Surface;
 use winit::{
-    application::ApplicationHandler,
     dpi::PhysicalSize,
     error::EventLoopError,
-    event::{KeyEvent, WindowEvent},
-    event_loop::EventLoop,
+    event::{Event, KeyEvent, WindowEvent},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowAttributes},
+    window::{Window, WindowAttributes, WindowBuilder},
 };
+
+use super::gui::EguiRenderer;
 
 pub trait App: 'static + Sized {
     const SRGB: bool = true;
@@ -276,108 +278,165 @@ impl FrameCounter {
 }
 
 struct AppHandler<A: App> {
-    app: Option<A>,
+    app: A,
     context: AppContext,
     surface: SurfaceWrapper,
-    window: Option<Arc<Window>>,
+    window: Arc<Window>,
     frame_counter: FrameCounter,
+    egui_renderer: EguiRenderer,
+    scale_factor: f32,
 }
 
 impl<A: App> AppHandler<A> {
-    fn new(context: AppContext, surface: SurfaceWrapper) -> Self {
+    fn new(context: AppContext, surface: SurfaceWrapper, window: Arc<Window>) -> Self {
+        let egui_renderer =
+            EguiRenderer::new(&context.device, surface.config().format, None, 1, &window);
         Self {
-            app: None,
+            app: A::init(
+                surface.config(),
+                &context.adapter,
+                &context.device,
+                &context.queue,
+            ),
             context,
             surface,
-            window: None,
+            window,
             frame_counter: FrameCounter::new(),
+            egui_renderer,
+            scale_factor: 1.0,
         }
     }
 }
-impl<A: App> ApplicationHandler for AppHandler<A> {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        if self.window.is_none() {
-            let window = Arc::new(
-                event_loop
-                    .create_window(WindowAttributes::default())
-                    .unwrap(),
-            );
-            self.window = Some(window.clone());
-            self.surface.resume(&self.context, window, A::SRGB);
-            if self.app.is_none() {
-                self.app = Some(A::init(
-                    self.surface.config(),
-                    &self.context.adapter,
-                    &self.context.device,
-                    &self.context.queue,
-                ));
-            }
-        }
-    }
+impl<A: App> AppHandler<A> {
+    // fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    //     if self.window.is_none() {
+    //         let window = Arc::new(
+    //             event_loop
+    //                 .create_window(WindowAttributes::default())
+    //                 .unwrap(),
+    //         );
+    //         self.window = Some(window.clone());
+    //         self.surface.resume(&self.context, window, A::SRGB);
+    //         if self.app.is_none() {
+    //             self.app = Some(A::init(
+    //                 self.surface.config(),
+    //                 &self.context.adapter,
+    //                 &self.context.device,
+    //                 &self.context.queue,
+    //             ));
+    //         }
+    //     }
+    // }
 
-    fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.surface.suspend();
-    }
+    // fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+    //     self.surface.suspend();
+    // }
 
-    fn window_event(
+    fn event(
         &mut self,
-        event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: WindowEvent,
+        // event_loop: &winit::event_loop::ActiveEventLoop,
+        event: Event<()>,
+        elwt: &EventLoopWindowTarget<()>,
     ) {
-        if self.window.as_ref().unwrap().id() != window_id {
-            return;
-        }
         match event {
-            WindowEvent::Resized(size) => {
-                self.surface.resize(&self.context, size);
-                self.app.as_mut().unwrap().resize(
-                    self.surface.config(),
-                    &self.context.device,
-                    &self.context.queue,
-                );
-
-                self.window.as_mut().unwrap().request_redraw();
-            }
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        logical_key: Key::Named(NamedKey::Escape),
-                        ..
-                    },
-                ..
-            }
-            | WindowEvent::CloseRequested => {
-                event_loop.exit();
-            }
-
-            WindowEvent::RedrawRequested => {
-                // On MacOS, currently redraw requested comes in _before_ Init does.
-                // If this happens, just drop the requested redraw on the floor.
-                //
-                // See https://github.com/rust-windowing/winit/issues/3235 for some discussion
-                if self.app.is_none() {
+            Event::WindowEvent { window_id, event } => {
+                if self.window.id() != window_id {
                     return;
                 }
+                self.egui_renderer.handle_input(&self.window, &event);
+                match event {
+                    WindowEvent::Resized(size) => {
+                        self.surface.resize(&self.context, size);
+                        self.app.resize(
+                            self.surface.config(),
+                            &self.context.device,
+                            &self.context.queue,
+                        );
 
-                self.frame_counter.update();
+                        self.window.request_redraw();
+                    }
+                    WindowEvent::KeyboardInput {
+                        event:
+                            KeyEvent {
+                                logical_key: Key::Named(NamedKey::Escape),
+                                ..
+                            },
+                        ..
+                    }
+                    | WindowEvent::CloseRequested => {
+                        elwt.exit();
+                    }
 
-                let frame = self.surface.acquire(&self.context);
-                let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-                    format: Some(self.surface.config().view_formats[0]),
-                    ..wgpu::TextureViewDescriptor::default()
-                });
+                    WindowEvent::RedrawRequested => {
+                        self.frame_counter.update();
 
-                self.app
-                    .as_mut()
-                    .unwrap()
-                    .render(&view, &self.context.device, &self.context.queue);
+                        let frame = self.surface.acquire(&self.context);
+                        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
+                            format: Some(self.surface.config().view_formats[0]),
+                            ..wgpu::TextureViewDescriptor::default()
+                        });
 
-                frame.present();
+                        self.app
+                            .render(&view, &self.context.device, &self.context.queue);
 
-                self.window.as_ref().unwrap().request_redraw();
+                        let mut encoder = self.context.device.create_command_encoder(
+                            &wgpu::CommandEncoderDescriptor { label: None },
+                        );
+                        let screen_descriptor = ScreenDescriptor {
+                            size_in_pixels: [
+                                self.surface.config().width,
+                                self.surface.config().height,
+                            ],
+                            pixels_per_point: self.window.scale_factor() as f32 * self.scale_factor,
+                        };
+
+                        self.egui_renderer.draw(
+                            &self.context.device,
+                            &self.context.queue,
+                            &mut encoder,
+                            &self.window,
+                            &view,
+                            screen_descriptor,
+                            |ctx| {
+                                egui::Window::new("winit + egui + wgpu says hello!")
+                                    .resizable(true)
+                                    .vscroll(true)
+                                    .default_open(false)
+                                    .show(ctx, |ui| {
+                                        ui.label("Label!");
+
+                                        if ui.button("Button!").clicked() {
+                                            println!("boom!")
+                                        }
+
+                                        ui.separator();
+                                        ui.horizontal(|ui| {
+                                            ui.label(format!(
+                                                "Pixels per point: {}",
+                                                ctx.pixels_per_point()
+                                            ));
+                                            if ui.button("-").clicked() {
+                                                self.scale_factor =
+                                                    (self.scale_factor - 0.1).max(0.3);
+                                            }
+                                            if ui.button("+").clicked() {
+                                                self.scale_factor =
+                                                    (self.scale_factor + 0.1).min(3.0);
+                                            }
+                                        });
+                                    });
+                            },
+                        );
+                        self.context.queue.submit(Some(encoder.finish()));
+                        frame.present();
+
+                        self.window.request_redraw();
+                    }
+                    _ => self.app.input(event, &self.context.queue),
+                }
             }
-            _ => self.app.as_mut().unwrap().input(event, &self.context.queue),
+            Event::AboutToWait => self.window.request_redraw(),
+            _ => {}
         }
     }
 }
@@ -385,11 +444,16 @@ impl<A: App> ApplicationHandler for AppHandler<A> {
 async fn start<A: App>() -> Result<(), EventLoopError> {
     tracing_subscriber::fmt().init();
     let event_loop = EventLoop::new().unwrap();
-    let surface = SurfaceWrapper::new();
+    let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
+    event_loop.set_control_flow(ControlFlow::Poll);
+    let mut surface = SurfaceWrapper::new();
     let context = AppContext::init_async::<A>(&surface).await;
-    let mut app_handler = AppHandler::<A>::new(context, surface);
+    surface.resume(&context, window.clone(), A::SRGB);
+    let mut handler = AppHandler::<A>::new(context, surface, window);
     tracing::info!("Entering event loop...");
-    event_loop.run_app(&mut app_handler)
+    event_loop.run(move |event, elwt| {
+        handler.event(event, elwt);
+    })
 }
 #[allow(clippy::missing_errors_doc)]
 pub fn run<A: App>() -> Result<(), EventLoopError> {

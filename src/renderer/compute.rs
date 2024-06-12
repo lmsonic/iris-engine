@@ -87,7 +87,7 @@ pub fn generate_mipmaps(
         layout: Some(&compute_pipeline_layout),
         module: &compute_shader,
         entry_point: "compute_mip_map",
-        compilation_options: Default::default(),
+        // compilation_options: Default::default(),
     });
 
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());

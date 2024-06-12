@@ -18,15 +18,15 @@ nursery = "warn"
 module_name_repetitions = "allow"
 
 [dependencies]
-glam = { version = "0.27.0", features = ["approx", "glam-assert", "bytemuck"] }
+glam = { version = "0.28.0", features = ["approx", "glam-assert", "bytemuck"] }
 proptest = "1.4.0"
 approx = "0.5.1"
 bytemuck = { version = "1.16", features = ["derive"] }
 pollster = "0.3.0"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-wgpu = "0.20.0"
-winit = "0.30.0"
+wgpu = "0.19.4"
+winit = "0.29.15"
 roots = "0.0.8"
 image = "0.25.1"
 futures-channel = "0.3.30"
@@ -35,3 +35,7 @@ hexasphere = "12.0.0"
 num-traits = "0.2.19"
 palette = "0.7.6"
 itertools = "0.13.0"
+egui = "0.27.2"
+egui-wgpu = { version = "0.27.2", features = ["winit"] }
+egui-winit = "0.27.2"
+raw-window-handle = "0.6.0"

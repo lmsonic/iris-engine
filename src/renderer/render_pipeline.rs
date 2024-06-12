@@ -80,7 +80,7 @@ impl<'a> RenderPipelineBuilder<'a> {
                 module: &module,
                 entry_point: "vs_main",
                 buffers: &[T::layout()],
-                compilation_options: Default::default(),
+                // compilation_options: Default::default(),
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -123,7 +123,7 @@ impl<'a> RenderPipelineBuilder<'a> {
                     }),
                     write_mask: wgpu::ColorWrites::all(),
                 })],
-                compilation_options: Default::default(),
+                // compilation_options: Default::default(),
             }),
             multiview: None,
         })

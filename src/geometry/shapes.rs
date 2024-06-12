@@ -195,8 +195,8 @@ impl Sphere {
             .iter()
             .zip(generated.raw_data())
             .map(|(pn, uv)| {
-                let position: Vec3 = Vec3::from(*pn) * self.radius;
-                let normal: Vec3 = Vec3::from(*pn);
+                let position: Vec3 = Vec3::new(pn.x, pn.y, pn.z) * self.radius;
+                let normal: Vec3 = Vec3::new(pn.x, pn.y, pn.z);
                 let uv: Vec2 = Vec2::from(*uv);
                 Vertex {
                     position,

@@ -4,6 +4,7 @@ pub mod buffer;
 pub mod camera;
 pub mod color;
 pub mod compute;
+pub mod gui;
 pub mod light;
 pub mod material;
 pub mod mesh;
