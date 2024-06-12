@@ -5,7 +5,9 @@ use iris_engine::renderer::{
     camera::{GpuCamera, OrbitCamera},
     color::Color,
     light::PointLight,
-    material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
+    material::{
+        LitMaterial, LitMaterialBuilder, MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder,
+    },
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
     texture::Texture,
@@ -19,7 +21,7 @@ struct Example {
     camera_uniform: UniformBuffer<GpuCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
-    material: LitMaterial,
+    material: PbrMaterial,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -53,7 +55,7 @@ impl iris_engine::renderer::app::App for Example {
             .build(device);
         let texture = Texture::from_path("examples/plane/diffuse.jpg", device, queue);
         let normal = Texture::from_path("examples/plane/normal.png", device, queue);
-        let material = LitMaterialBuilder::new()
+        let material = PbrMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)
             .build(device, queue);

@@ -21,6 +21,7 @@ struct Example {
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: UnlitMaterial,
+    depth: Texture,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -53,7 +54,9 @@ impl iris_engine::renderer::app::App for Example {
         let material = UnlitMaterialBuilder::new()
             .diffuse_texture(texture)
             .build(device, queue);
+        let depth = Texture::depth(device, config.width, config.height);
         let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+            .depth(depth.texture.format())
             .build::<Vertex>(device, config.format);
 
         let pipeline_wire = if device
@@ -64,6 +67,7 @@ impl iris_engine::renderer::app::App for Example {
                 RenderPipelineWire::new()
                     .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
+                    .depth(depth.texture.format())
                     .cull_mode(None)
                     .build::<Vertex>(device, config.format),
             )
@@ -81,6 +85,7 @@ impl iris_engine::renderer::app::App for Example {
             pipeline,
             pipeline_wire,
             material,
+            depth,
         }
     }
 
@@ -94,13 +99,14 @@ impl iris_engine::renderer::app::App for Example {
     fn resize(
         &mut self,
         config: &wgpu::SurfaceConfiguration,
-        _device: &wgpu::Device,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
         self.camera.set_projection(aspect_ratio);
         self.camera_uniform.data = self.camera.to_gpu();
         self.camera_uniform.update(queue);
+        self.depth = Texture::depth(device, config.width, config.height);
     }
 
     fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
@@ -114,6 +120,7 @@ impl iris_engine::renderer::app::App for Example {
                     b: 0.3,
                     a: 1.0,
                 })
+                .depth(&self.depth.view)
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);

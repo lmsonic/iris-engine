@@ -103,13 +103,14 @@ impl iris_engine::renderer::app::App for Example {
     fn resize(
         &mut self,
         config: &wgpu::SurfaceConfiguration,
-        _device: &wgpu::Device,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
         self.camera.set_projection(aspect_ratio);
         self.camera_uniform.data = self.camera.to_gpu();
         self.camera_uniform.update(queue);
+        self.depth_texture = Texture::depth(device, config.width, config.height);
     }
 
     fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {

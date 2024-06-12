@@ -4,7 +4,7 @@ use iris_engine::renderer::{
     buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
     camera::{GpuCamera, OrbitCamera},
     color::Color,
-    light::PointLight,
+    light::{DirectionalLight, PointLight},
     material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -44,7 +44,7 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
 
-        let point_light = PointLight::new(Color::WHITE, Vec3::Y * 2.0);
+        let point_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
 
         let light_storage = StorageBuffer::new([point_light.to_gpu()], device);
 
@@ -103,13 +103,14 @@ impl iris_engine::renderer::app::App for Example {
     fn resize(
         &mut self,
         config: &wgpu::SurfaceConfiguration,
-        _device: &wgpu::Device,
+        device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
         self.camera.set_projection(aspect_ratio);
         self.camera_uniform.data = self.camera.to_gpu();
         self.camera_uniform.update(queue);
+        self.depth_texture = Texture::depth(device, config.width, config.height);
     }
 
     fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue) {
