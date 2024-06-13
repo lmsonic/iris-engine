@@ -308,7 +308,7 @@ pub fn load_geometry(path: impl AsRef<Path> + Debug) -> Mesh {
         };
 
         vertices.extend(positions.into_iter().zip(normals).zip(colors).zip(uvs).map(
-            |(((p, n), c), t)| Vertex {
+            |(((p, n), _c), t)| Vertex {
                 position: p,
                 tangent: Vec3::Y,
                 bitangent: Vec3::Z,

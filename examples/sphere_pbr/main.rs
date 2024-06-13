@@ -7,9 +7,7 @@ use iris_engine::{
         camera::{GpuCamera, OrbitCamera},
         color::Color,
         light::DirectionalLight,
-        material::{
-            LitMaterial, LitMaterialBuilder, MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder,
-        },
+        material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,

@@ -117,7 +117,12 @@ impl<T> StorageBuffer<T> {
         });
         Self { data, buffer }
     }
-    pub fn from_slice<U>(data: T, device: &wgpu::Device) -> Self
+    pub fn from_container<U>(
+        data: T,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        max_objects: u64,
+    ) -> Self
     where
         U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
         T: AsRef<[U]>,
@@ -126,11 +131,13 @@ impl<T> StorageBuffer<T> {
             mem::align_of::<T>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(data.as_ref()),
+            size: mem::size_of::<T>() as u64 * max_objects,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
         });
+        queue.write_buffer(&buffer, 0, bytemuck::cast_slice(data.as_ref()));
         Self { data, buffer }
     }
 
@@ -139,6 +146,13 @@ impl<T> StorageBuffer<T> {
         T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
     {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data]));
+    }
+    pub fn update_vec<U>(&self, queue: &wgpu::Queue)
+    where
+        U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        T: AsRef<[U]>,
+    {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(self.data.as_ref()));
     }
 }
 

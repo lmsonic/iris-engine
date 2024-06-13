@@ -4,7 +4,7 @@ use iris_engine::renderer::{
     buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
     camera::{GpuCamera, OrbitCamera},
     color::Color,
-    light::{DirectionalLight, PointLight},
+    light::DirectionalLight,
     material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -57,6 +57,7 @@ impl iris_engine::renderer::app::App for Example {
         let material = PbrMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)
+            .roughness(0.5)
             .build(device, queue);
         let depth_texture = Texture::depth(device, config.width, config.height);
         let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)

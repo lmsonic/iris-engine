@@ -5,6 +5,8 @@ use iris_engine::{
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
         camera::{GpuCamera, OrbitCamera},
+        color::Color,
+        gui::color_edit,
         material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -22,11 +24,25 @@ struct Example {
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: UnlitMaterial,
     depth: Texture,
+    clear_color: Color,
 }
 
 impl iris_engine::renderer::app::App for Example {
     fn optional_features() -> wgpu::Features {
         wgpu::Features::POLYGON_MODE_LINE
+    }
+
+    fn gui(&mut self, ctx: &egui::Context, queue: &wgpu::Queue) {
+        egui::Window::new("Triangle example")
+            .resizable(true)
+            .vscroll(true)
+            .default_open(false)
+            .show(ctx, |ui| {
+                if color_edit(ui, &mut self.material.diffuse_color.data, "Diffuse Color") {
+                    self.material.diffuse_color.update(queue);
+                }
+                color_edit(ui, &mut self.clear_color, "Clear Color");
+            });
     }
 
     fn init(
@@ -74,6 +90,11 @@ impl iris_engine::renderer::app::App for Example {
         } else {
             None
         };
+        let clear_color = Color {
+            r: 0.1,
+            g: 0.2,
+            b: 0.3,
+        };
 
         // Done
         Example {
@@ -86,6 +107,7 @@ impl iris_engine::renderer::app::App for Example {
             pipeline_wire,
             material,
             depth,
+            clear_color,
         }
     }
 
@@ -114,12 +136,7 @@ impl iris_engine::renderer::app::App for Example {
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let mut rpass = RenderPassBuilder::new()
-                .clear_color(wgpu::Color {
-                    r: 0.1,
-                    g: 0.2,
-                    b: 0.3,
-                    a: 1.0,
-                })
+                .clear_color(self.clear_color.into())
                 .depth(&self.depth.view)
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);

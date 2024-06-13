@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 
 use super::color::Color;
 
@@ -12,17 +12,66 @@ pub struct GpuLight {
     custom_data: Vec4,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Light {
+    DirectionalLight(DirectionalLight),
+    PointLight(PointLight),
+    SpotLight(SpotLight),
+}
+
+impl Light {
+    pub fn to_gpu(&self) -> GpuLight {
+        match self {
+            Self::DirectionalLight(light) => light.to_gpu(),
+            Self::PointLight(light) => light.to_gpu(),
+            Self::SpotLight(light) => light.to_gpu(),
+        }
+    }
+    pub fn from_gpu(light: &GpuLight) -> Self {
+        if light.position.w == 0.0 {
+            Self::DirectionalLight(DirectionalLight::new(
+                light.color_range.xyz().into(),
+                -light.position.xyz(),
+            ))
+        } else if light.custom_data.w == -1.0 {
+            Self::PointLight(PointLight::new(
+                light.color_range.xyz().into(),
+                light.position.xyz(),
+                light.color_range.w,
+                light.custom_data.xyz().into(),
+            ))
+        } else {
+            Self::SpotLight(SpotLight::new(
+                light.color_range.xyz().into(),
+                light.position.xyz(),
+                light.custom_data.xyz(),
+                light.color_range.w,
+                light.custom_data.w,
+            ))
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
 pub struct DirectionalLight {
     pub direction: Vec3,
     pub color: Vec3,
+}
+
+impl Default for DirectionalLight {
+    fn default() -> Self {
+        Self {
+            direction: Vec3::NEG_ONE,
+            color: Color::WHITE.into(),
+        }
+    }
 }
 
 impl DirectionalLight {
     #[must_use]
     pub fn new(color: Color, direction: Vec3) -> Self {
         Self {
-            direction: direction.normalize(),
             color: color.into(),
+            direction: direction.normalize(),
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
@@ -33,7 +82,7 @@ impl DirectionalLight {
         }
     }
 }
-
+#[derive(Debug, Clone, Copy)]
 pub struct PointLight {
     pub position: Vec3,
     pub color: Vec3,
@@ -41,14 +90,25 @@ pub struct PointLight {
     pub attenuation: [f32; 3],
 }
 
+impl Default for PointLight {
+    fn default() -> Self {
+        Self {
+            color: Color::WHITE.into(),
+            position: Vec3::ZERO,
+            range: 100.0,
+            attenuation: [0.0, 2.0, 0.0],
+        }
+    }
+}
+
 impl PointLight {
     #[must_use]
-    pub fn new(color: Color, position: Vec3) -> Self {
+    pub fn new(color: Color, position: Vec3, range: f32, attenuation: [f32; 3]) -> Self {
         Self {
             position,
             color: color.into(),
-            range: 100.0,
-            attenuation: [0.0, 2.0, 0.0],
+            range,
+            attenuation,
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
@@ -73,6 +133,18 @@ pub struct SpotLight {
     pub color: Vec3,
     pub range: f32,
     pub outer_cutoff: f32,
+}
+
+impl Default for SpotLight {
+    fn default() -> Self {
+        Self {
+            position: Vec3::ZERO,
+            direction: Vec3::Z,
+            color: Color::WHITE.into(),
+            range: 100.0,
+            outer_cutoff: f32::to_radians(30.0),
+        }
+    }
 }
 
 impl SpotLight {

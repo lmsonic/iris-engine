@@ -44,7 +44,7 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
 
-        let point_light = PointLight::new(Color::WHITE, Vec3::ONE);
+        let point_light = PointLight::new(Color::WHITE, Vec3::ONE, 100.0, [0.0, 2.0, 0.0]);
 
         let light_storage = StorageBuffer::new([point_light.to_gpu()], device);
 

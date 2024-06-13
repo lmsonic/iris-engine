@@ -8,7 +8,7 @@ use winit::{
     event::{Event, KeyEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowAttributes, WindowBuilder},
+    window::{Window, WindowBuilder},
 };
 
 use super::gui::EguiRenderer;
@@ -46,16 +46,18 @@ pub trait App: 'static + Sized {
         queue: &wgpu::Queue,
     ) -> Self;
 
+    fn gui(&mut self, _ctx: &egui::Context, _queue: &wgpu::Queue) {}
     fn resize(
         &mut self,
-        config: &wgpu::SurfaceConfiguration,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    );
+        _config: &wgpu::SurfaceConfiguration,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+    ) {
+    }
 
-    fn input(&mut self, event: WindowEvent, queue: &wgpu::Queue);
+    fn input(&mut self, _event: WindowEvent, _queue: &wgpu::Queue) {}
 
-    fn render(&mut self, view: &wgpu::TextureView, device: &wgpu::Device, queue: &wgpu::Queue);
+    fn render(&mut self, _view: &wgpu::TextureView, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
 }
 
 /// Wrapper type which manages the surface and surface configuration.
@@ -152,11 +154,11 @@ impl SurfaceWrapper {
     /// On suspend on android, we drop the surface, as it's no longer valid.
     ///
     /// A suspend event is always followed by at least one resume event.
-    fn suspend(&mut self) {
-        if cfg!(target_os = "android") {
-            self.surface = None;
-        }
-    }
+    // fn suspend(&mut self) {
+    //     if cfg!(target_os = "android") {
+    //         self.surface = None;
+    //     }
+    // }
 
     const fn get(&self) -> Option<&Surface> {
         self.surface.as_ref()
@@ -343,7 +345,10 @@ impl<A: App> AppHandler<A> {
                 if self.window.id() != window_id {
                     return;
                 }
-                self.egui_renderer.handle_input(&self.window, &event);
+                let response = self.egui_renderer.handle_input(&self.window, &event);
+                if response.repaint {
+                    self.window.request_redraw();
+                }
                 match event {
                     WindowEvent::Resized(size) => {
                         self.surface.resize(&self.context, size);
@@ -397,42 +402,18 @@ impl<A: App> AppHandler<A> {
                             &self.window,
                             &view,
                             screen_descriptor,
-                            |ctx| {
-                                egui::Window::new("winit + egui + wgpu says hello!")
-                                    .resizable(true)
-                                    .vscroll(true)
-                                    .default_open(false)
-                                    .show(ctx, |ui| {
-                                        ui.label("Label!");
-
-                                        if ui.button("Button!").clicked() {
-                                            println!("boom!")
-                                        }
-
-                                        ui.separator();
-                                        ui.horizontal(|ui| {
-                                            ui.label(format!(
-                                                "Pixels per point: {}",
-                                                ctx.pixels_per_point()
-                                            ));
-                                            if ui.button("-").clicked() {
-                                                self.scale_factor =
-                                                    (self.scale_factor - 0.1).max(0.3);
-                                            }
-                                            if ui.button("+").clicked() {
-                                                self.scale_factor =
-                                                    (self.scale_factor + 0.1).min(3.0);
-                                            }
-                                        });
-                                    });
-                            },
+                            |ctx| self.app.gui(ctx, &self.context.queue),
                         );
                         self.context.queue.submit(Some(encoder.finish()));
                         frame.present();
 
                         self.window.request_redraw();
                     }
-                    _ => self.app.input(event, &self.context.queue),
+                    _ => {
+                        if !response.consumed {
+                            self.app.input(event, &self.context.queue)
+                        };
+                    }
                 }
             }
             Event::AboutToWait => self.window.request_redraw(),

@@ -115,7 +115,7 @@ fn brdf(V: vec3f, L: vec3f, N: vec3f, diffuse: vec3f, intensity: vec3f) -> vec3f
 
     let D = microfacet_distribution_ggx(NdotH);
     let F = fresnel(LdotH, vec3f(f0));
-    let G = saturate(visibility_smith_ggx_correlated(NdotV, NdotL, roughness));
+    let G = clamp(visibility_smith_ggx_correlated(NdotV, NdotL, roughness), 0.0, 30.0);
 
     let specular_bdrf = D * F * G;
     return (1.0 - specular) * diffuse_bdrf + specular * specular_bdrf;
@@ -178,6 +178,7 @@ fn visibility_smith_ggx_correlated(NdotV: f32, NdotL: f32, a: f32) -> f32 {
     let a2 = roughness * roughness;
     let GGXV = NdotL * sqrt((NdotV - a2 * NdotV) * NdotV + a2);
     let GGXL = NdotV * sqrt((NdotL - a2 * NdotL) * NdotL + a2);
+    // It can divide by zero if NdotL and NdotV is 0
     return 0.5 / (GGXV + GGXL);
 }
 

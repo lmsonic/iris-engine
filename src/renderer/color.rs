@@ -11,6 +11,32 @@ pub struct Color {
     pub g: f32,
     pub b: f32,
 }
+impl From<wgpu::Color> for Color {
+    fn from(value: wgpu::Color) -> Self {
+        Color::new(value.r as f32, value.g as f32, value.b as f32)
+    }
+}
+impl From<Color> for wgpu::Color {
+    fn from(value: Color) -> Self {
+        wgpu::Color {
+            r: value.r.into(),
+            g: value.g.into(),
+            b: value.b.into(),
+            a: 1.0,
+        }
+    }
+}
+impl From<[f32; 3]> for Color {
+    fn from(value: [f32; 3]) -> Self {
+        Color::new(value[0], value[1], value[2])
+    }
+}
+impl From<Color> for [f32; 3] {
+    fn from(value: Color) -> Self {
+        [value.r, value.g, value.b]
+    }
+}
+
 impl From<Vec3> for Color {
     fn from(value: Vec3) -> Self {
         Color::new(value.x, value.y, value.z)
