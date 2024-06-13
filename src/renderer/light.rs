@@ -1,8 +1,14 @@
 use bytemuck::{Pod, Zeroable};
 
+use egui::Ui;
 use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 
-use super::color::Color;
+use crate::GpuSendable;
+
+use super::{
+    color::Color,
+    gui::{array3_edit, color_edit, direction_edit, drag_angle_clamp, float_edit, vec3_edit},
+};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -19,14 +25,69 @@ pub enum Light {
     SpotLight(SpotLight),
 }
 
-impl Light {
-    pub fn to_gpu(&self) -> GpuLight {
+impl GpuSendable<GpuLight> for Light {
+    fn to_gpu(&self) -> GpuLight {
         match self {
             Self::DirectionalLight(light) => light.to_gpu(),
             Self::PointLight(light) => light.to_gpu(),
             Self::SpotLight(light) => light.to_gpu(),
         }
     }
+}
+impl From<DirectionalLight> for Light {
+    fn from(value: DirectionalLight) -> Self {
+        Self::DirectionalLight(value)
+    }
+}
+impl From<PointLight> for Light {
+    fn from(value: PointLight) -> Self {
+        Self::PointLight(value)
+    }
+}
+impl From<SpotLight> for Light {
+    fn from(value: SpotLight) -> Self {
+        Self::SpotLight(value)
+    }
+}
+
+impl Light {
+    pub fn gui(&mut self, ui: &mut Ui) -> bool {
+        let mut changed = false;
+        match self {
+            Light::DirectionalLight(ref mut light) => {
+                ui.label("Directional Light");
+                changed |= color_edit(ui, &mut light.color, "Color");
+                changed |= direction_edit(ui, &mut light.direction, "Direction");
+            }
+            Light::PointLight(ref mut light) => {
+                ui.label("Point Light");
+                changed |= color_edit(ui, &mut light.color, "Color");
+                changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
+                changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
+                changed |= array3_edit(
+                    ui,
+                    &mut light.attenuation,
+                    "Attenuation function",
+                    0.0..=5.0,
+                );
+            }
+            Light::SpotLight(ref mut light) => {
+                ui.label("Spot Light");
+                changed |= color_edit(ui, &mut light.color, "Color");
+                changed |= direction_edit(ui, &mut light.direction, "Direction");
+                changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
+                changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
+                ui.horizontal(|ui| {
+                    changed |= drag_angle_clamp(ui, &mut light.outer_cutoff, 0.0..=90.0).changed();
+                    light.outer_cutoff = f32::max(0.0, light.outer_cutoff);
+                    ui.label("Cutoff");
+                });
+            }
+        };
+        changed
+    }
+}
+impl Light {
     pub fn from_gpu(light: &GpuLight) -> Self {
         if light.position.w == 0.0 {
             Self::DirectionalLight(DirectionalLight::new(
@@ -74,7 +135,10 @@ impl DirectionalLight {
             direction: direction.normalize(),
         }
     }
-    pub fn to_gpu(&self) -> GpuLight {
+}
+
+impl GpuSendable<GpuLight> for DirectionalLight {
+    fn to_gpu(&self) -> GpuLight {
         GpuLight {
             position: -self.direction.extend(0.0),
             color_range: self.color.extend(0.0),
@@ -112,6 +176,22 @@ impl PointLight {
         }
     }
     pub fn to_gpu(&self) -> GpuLight {
+        GpuLight {
+            position: self.position.extend(1.0),
+            color_range: self.color.extend(self.range),
+            custom_data: Vec4::new(
+                self.attenuation[0],
+                self.attenuation[1],
+                self.attenuation[2],
+                // To flag its a point light
+                -1.0,
+            ),
+        }
+    }
+}
+
+impl GpuSendable<GpuLight> for PointLight {
+    fn to_gpu(&self) -> GpuLight {
         GpuLight {
             position: self.position.extend(1.0),
             color_range: self.color.extend(self.range),
@@ -165,14 +245,6 @@ impl SpotLight {
         }
     }
 
-    pub fn to_gpu(&self) -> GpuLight {
-        GpuLight {
-            position: self.position.extend(1.0),
-            color_range: self.color.extend(self.range),
-            custom_data: self.direction.extend(self.outer_cutoff.cos()),
-        }
-    }
-
     #[must_use]
     pub fn project_texture_matrix(&self, width: usize, height: usize) -> Mat4 {
         let z_axis = self.direction;
@@ -201,5 +273,15 @@ impl SpotLight {
             Vec4::ZERO,
         );
         from_world_to_light * projection
+    }
+}
+
+impl GpuSendable<GpuLight> for SpotLight {
+    fn to_gpu(&self) -> GpuLight {
+        GpuLight {
+            position: self.position.extend(1.0),
+            color_range: self.color.extend(self.range),
+            custom_data: self.direction.extend(self.outer_cutoff.cos()),
+        }
     }
 }

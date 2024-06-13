@@ -18,6 +18,7 @@ struct VertexInput {
 @group(1) @binding(5) var<uniform> specular: f32;
 @group(1) @binding(6) var<uniform> ior: f32;
 @group(1) @binding(7) var<uniform> roughness: f32;
+@group(1) @binding(8) var<uniform> ambient: vec3f;
 
 
 @vertex
@@ -86,9 +87,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         lighting += brdf(V, L, N, diffuse, intensity);
     }
-    let ambient = vec3f(0.01) * diffuse_color;
 
-    return vec4<f32>(lighting, 1.0);
+    return vec4<f32>(lighting + ambient * diffuse_color, 1.0);
 }
 
 
@@ -115,7 +115,7 @@ fn brdf(V: vec3f, L: vec3f, N: vec3f, diffuse: vec3f, intensity: vec3f) -> vec3f
 
     let D = microfacet_distribution_ggx(NdotH);
     let F = fresnel(LdotH, vec3f(f0));
-    let G = clamp(visibility_smith_ggx_correlated(NdotV, NdotL, roughness), 0.0, 30.0);
+    let G = clamp(visibility_smith_ggx_correlated(NdotV, NdotL, roughness), 0.0, 1.0);
 
     let specular_bdrf = D * F * G;
     return (1.0 - specular) * diffuse_bdrf + specular * specular_bdrf;

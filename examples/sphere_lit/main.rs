@@ -1,14 +1,13 @@
-use egui::Slider;
 use glam::Vec3;
 use iris_engine::{
     geometry::shapes::Sphere,
     renderer::{
         bind_group::{BindGroup, BindGroupBuilder},
-        buffer::{IndexBuffer, StorageBuffer, UniformBuffer, VertexBuffer},
-        camera::{GpuCamera, OrbitCamera},
+        buffer::{IndexBuffer, StorageBufferVec, UniformBuffer, VertexBuffer},
+        camera::OrbitCamera,
         color::Color,
-        gui::{array3_edit, color_edit, direction_edit, drag_angle_clamp, float_edit, vec3_edit},
-        light::{DirectionalLight, GpuLight, Light, PointLight, SpotLight},
+        gui::color_edit,
+        light::{DirectionalLight, Light, PointLight, SpotLight},
         material::{LitMaterial, LitMaterialBuilder, MeshPipelineBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -20,14 +19,13 @@ struct Example {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer,
     bind_group: BindGroup,
-    camera: OrbitCamera,
-    camera_uniform: UniformBuffer<GpuCamera>,
+    camera_uniform: UniformBuffer<OrbitCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: LitMaterial,
     depth_texture: Texture,
     clear_color: Color,
-    light_storage: StorageBuffer<Vec<GpuLight>>,
+    light_storage: StorageBufferVec<Light>,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -41,67 +39,11 @@ impl iris_engine::renderer::app::App for Example {
             .vscroll(true)
             .default_open(false)
             .show(ctx, |ui| {
-                if color_edit(ui, &mut self.material.diffuse_color.data, "Diffuse Color") {
-                    self.material.diffuse_color.update(queue);
-                }
-                if color_edit(ui, &mut self.material.specular_color.data, "Specular Color") {
-                    self.material.specular_color.update(queue);
-                }
-
-                if float_edit(
-                    ui,
-                    &mut self.material.specular_exponent.data,
-                    "Specular Exponent",
-                    0.0..=1000.0,
-                ) {
-                    self.material.specular_exponent.update(queue);
-                }
+                self.material.gui(ui, queue);
                 let mut changed = false;
                 let mut indices = vec![];
                 for (i, gpu_light) in &mut self.light_storage.data.iter_mut().enumerate() {
-                    match Light::from_gpu(gpu_light) {
-                        Light::DirectionalLight(mut light) => {
-                            ui.label("Directional Light");
-                            changed |= color_edit(ui, &mut light.color, "Color");
-                            changed |= direction_edit(ui, &mut light.direction, "Direction");
-                            if changed {
-                                *gpu_light = light.to_gpu();
-                            }
-                        }
-                        Light::PointLight(mut light) => {
-                            ui.label("Point Light");
-                            changed |= color_edit(ui, &mut light.color, "Color");
-                            changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
-                            changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
-                            changed |= array3_edit(
-                                ui,
-                                &mut light.attenuation,
-                                "Attenuation function",
-                                0.0..=5.0,
-                            );
-
-                            if changed {
-                                *gpu_light = light.to_gpu();
-                            }
-                        }
-                        Light::SpotLight(mut light) => {
-                            ui.label("Spot Light");
-                            changed |= color_edit(ui, &mut light.color, "Color");
-                            changed |= direction_edit(ui, &mut light.direction, "Direction");
-                            changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
-                            changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
-                            ui.horizontal(|ui| {
-                                changed |=
-                                    drag_angle_clamp(ui, &mut light.outer_cutoff, 0.0..=90.0)
-                                        .changed();
-                                light.outer_cutoff = f32::max(0.0, light.outer_cutoff);
-                                ui.label("Cutoff");
-                            });
-                            if changed {
-                                *gpu_light = light.to_gpu();
-                            }
-                        }
-                    };
+                    changed |= gpu_light.gui(ui);
                     if ui.button("Remove Light").clicked() {
                         changed = true;
                         indices.push(i);
@@ -114,20 +56,20 @@ impl iris_engine::renderer::app::App for Example {
                 if ui.button("Add Directional Light").clicked() {
                     self.light_storage
                         .data
-                        .push(DirectionalLight::default().to_gpu());
+                        .push(DirectionalLight::default().into());
                     changed = true;
                 }
                 if ui.button("Add Point Light").clicked() {
-                    self.light_storage.data.push(PointLight::default().to_gpu());
+                    self.light_storage.data.push(PointLight::default().into());
                     changed = true;
                 }
                 if ui.button("Add Spot Light").clicked() {
-                    self.light_storage.data.push(SpotLight::default().to_gpu());
+                    self.light_storage.data.push(SpotLight::default().into());
                     changed = true;
                 }
 
                 if changed || !indices.is_empty() {
-                    self.light_storage.update_vec(queue);
+                    self.light_storage.update(queue);
                 }
 
                 color_edit(ui, &mut self.clear_color, "Clear Color");
@@ -148,12 +90,11 @@ impl iris_engine::renderer::app::App for Example {
         let aspect_ratio = config.width as f32 / config.height as f32;
         let camera = OrbitCamera::new(2.0, aspect_ratio);
 
-        let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
+        let camera_uniform = UniformBuffer::new(camera, device);
 
         let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
 
-        let light_storage =
-            StorageBuffer::from_container(vec![directional_light.to_gpu()], device, queue, 100);
+        let light_storage = StorageBufferVec::new(&[directional_light.into()], device, queue, 16);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
@@ -197,7 +138,6 @@ impl iris_engine::renderer::app::App for Example {
             vertex_buffer,
             index_buffer,
             bind_group,
-            camera,
             camera_uniform,
             pipeline,
             pipeline_wire: _pipeline_wire,
@@ -209,8 +149,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
-        if self.camera.input(event) {
-            self.camera_uniform.data = self.camera.to_gpu();
+        if self.camera_uniform.data.input(event) {
             self.camera_uniform.update(queue);
         }
     }
@@ -222,8 +161,7 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera.set_projection(aspect_ratio);
-        self.camera_uniform.data = self.camera.to_gpu();
+        self.camera_uniform.data.set_projection(aspect_ratio);
         self.camera_uniform.update(queue);
         self.depth_texture = Texture::depth(device, config.width, config.height)
     }

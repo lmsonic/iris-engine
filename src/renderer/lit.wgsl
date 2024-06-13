@@ -17,6 +17,7 @@ struct VertexInput {
 @group(1) @binding(4) var s_normal_map: sampler;
 @group(1) @binding(5) var<uniform> specular_color: vec3f;
 @group(1) @binding(6) var<uniform> specular_exponent: f32;
+@group(1) @binding(7) var<uniform> ambient: vec3f;
 
 
 @vertex
@@ -85,9 +86,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let specular = intensity * pow(NdotH, specular_exponent) * select(0.0, 1.0, NdotL > 0.0);
         lighting += diffuse_color * diffuse + specular_color * specular;
     }
-    let ambient = vec3f(0.01) * diffuse_color;
 
-    return vec4<f32>(lighting + ambient, 1.0);
+    return vec4<f32>(lighting + ambient * diffuse_color, 1.0);
 }
 
 struct Light {

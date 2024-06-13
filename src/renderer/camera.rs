@@ -7,6 +7,8 @@ use winit::{
     event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
 };
 
+use crate::GpuSendable;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbitCamera {
     projection: Mat4,
@@ -26,6 +28,19 @@ pub struct GpuCamera {
     _pad: f32,
 }
 
+impl GpuSendable<GpuCamera> for OrbitCamera {
+    fn to_gpu(&self) -> GpuCamera {
+        let view = self.view();
+        GpuCamera {
+            projection: self.projection,
+            view,
+            inv_view: view.inverse().transpose(),
+            position: self.position(),
+            _pad: 0.0,
+        }
+    }
+}
+
 impl OrbitCamera {
     pub fn new(orbit_radius: f32, aspect_ratio: f32) -> Self {
         let mut camera = Self {
@@ -35,16 +50,6 @@ impl OrbitCamera {
         };
         camera.set_projection(aspect_ratio);
         camera
-    }
-    pub fn to_gpu(&self) -> GpuCamera {
-        let view = self.view();
-        GpuCamera {
-            projection: self.projection,
-            view,
-            inv_view: view.inverse().transpose(),
-            position: self.position(),
-            _pad: 0.0,
-        }
     }
 
     pub fn position(&self) -> Vec3 {

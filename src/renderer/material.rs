@@ -1,10 +1,12 @@
+use egui::Ui;
 use image::{DynamicImage, ImageBuffer};
-use wgpu::{include_wgsl, ShaderModuleDescriptor};
+use wgpu::{core::device::queue, include_wgsl, ShaderModuleDescriptor};
 
 use super::{
     bind_group::{BindGroup, BindGroupBuilder},
     buffer::UniformBuffer,
     color::Color,
+    gui::{color_edit, float_edit},
     render_pipeline::RenderPipelineBuilder,
     texture::Texture,
 };
@@ -17,6 +19,14 @@ pub struct UnlitMaterial {
     pub diffuse_texture: Texture,
     pub diffuse_color: UniformBuffer<Color>,
     pub bind_group: BindGroup,
+}
+
+impl UnlitMaterial {
+    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+        if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
+            self.diffuse_color.update(queue);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -67,7 +77,31 @@ pub struct LitMaterial {
     pub normal_map: Texture,
     pub specular_color: UniformBuffer<Color>,
     pub specular_exponent: UniformBuffer<f32>,
+    pub ambient: UniformBuffer<Color>,
     pub bind_group: BindGroup,
+}
+
+impl LitMaterial {
+    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+        if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
+            self.diffuse_color.update(queue);
+        }
+        if color_edit(ui, &mut self.specular_color.data, "Specular Color") {
+            self.specular_color.update(queue);
+        }
+
+        if float_edit(
+            ui,
+            &mut self.specular_exponent.data,
+            "Specular Exponent",
+            0.0..=1000.0,
+        ) {
+            self.specular_exponent.update(queue);
+        }
+        if color_edit(ui, &mut self.ambient.data, "Ambient Color") {
+            self.ambient.update(queue);
+        }
+    }
 }
 
 #[derive(Default)]
@@ -77,6 +111,7 @@ pub struct LitMaterialBuilder {
     normal_map: Option<Texture>,
     specular_color: Option<Color>,
     specular_exponent: Option<f32>,
+    ambient: Option<Color>,
 }
 
 impl LitMaterialBuilder {
@@ -113,6 +148,12 @@ impl LitMaterialBuilder {
             ..self
         }
     }
+    pub fn ambient(self, ambient: Color) -> Self {
+        Self {
+            ambient: Some(ambient),
+            ..self
+        }
+    }
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> LitMaterial {
         let diffuse_color = UniformBuffer::new(self.diffuse_color.unwrap_or(Color::WHITE), device);
         let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
@@ -129,12 +170,14 @@ impl LitMaterialBuilder {
                 ImageBuffer::from_pixel(2, 2, image::Rgba([127_u8, 127_u8, 127_u8, 255_u8])).into();
             Texture::new(default_normal_map, device, queue)
         });
+        let ambient = UniformBuffer::new(self.ambient.unwrap_or(Color::WHITE * 0.1), device);
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)
             .uniform(&diffuse_color.buffer)
             .texture(&normal_map)
             .uniform(&specular_color.buffer)
             .uniform(&specular_exponent.buffer)
+            .uniform(&ambient.buffer)
             .build(device);
         LitMaterial {
             diffuse_texture,
@@ -143,6 +186,7 @@ impl LitMaterialBuilder {
             normal_map,
             specular_color,
             specular_exponent,
+            ambient,
         }
     }
 }
@@ -154,7 +198,28 @@ pub struct PbrMaterial {
     pub specular: UniformBuffer<f32>,
     pub ior: UniformBuffer<f32>,
     pub roughness: UniformBuffer<f32>,
+    pub ambient: UniformBuffer<Color>,
     pub bind_group: BindGroup,
+}
+
+impl PbrMaterial {
+    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+        if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
+            self.diffuse_color.update(queue);
+        }
+        if float_edit(ui, &mut self.specular.data, "Specular Intensity", 0.0..=1.0) {
+            self.specular.update(queue);
+        }
+        if float_edit(ui, &mut self.ior.data, "Index of Refraction", 0.5..=3.0) {
+            self.ior.update(queue);
+        }
+        if float_edit(ui, &mut self.roughness.data, "Roughness", 0.0..=1.0) {
+            self.roughness.update(queue);
+        }
+        if color_edit(ui, &mut self.ambient.data, "Ambient Color") {
+            self.ambient.update(queue);
+        }
+    }
 }
 #[derive(Default)]
 pub struct PbrMaterialBuilder {
@@ -164,6 +229,7 @@ pub struct PbrMaterialBuilder {
     specular: Option<f32>,
     ior: Option<f32>,
     roughness: Option<f32>,
+    ambient: Option<Color>,
 }
 
 impl PbrMaterialBuilder {
@@ -206,6 +272,12 @@ impl PbrMaterialBuilder {
             ..self
         }
     }
+    pub fn ambient(self, ambient: Color) -> Self {
+        Self {
+            ambient: Some(ambient),
+            ..self
+        }
+    }
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> PbrMaterial {
         let diffuse_color = UniformBuffer::new(self.diffuse_color.unwrap_or(Color::WHITE), device);
         let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
@@ -221,6 +293,8 @@ impl PbrMaterialBuilder {
                 ImageBuffer::from_pixel(2, 2, image::Rgba([127_u8, 127_u8, 127_u8, 255_u8])).into();
             Texture::new(default_normal_map, device, queue)
         });
+        let ambient = UniformBuffer::new(self.ambient.unwrap_or(Color::WHITE * 0.01), device);
+
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)
             .uniform(&diffuse_color.buffer)
@@ -228,6 +302,7 @@ impl PbrMaterialBuilder {
             .uniform(&specular.buffer)
             .uniform(&ior.buffer)
             .uniform(&roughness.buffer)
+            .uniform(&ambient.buffer)
             .build(device);
         PbrMaterial {
             diffuse_texture,
@@ -237,6 +312,7 @@ impl PbrMaterialBuilder {
             ior,
             specular,
             roughness,
+            ambient,
         }
     }
 }

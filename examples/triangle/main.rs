@@ -1,11 +1,10 @@
-use egui::Ui;
 use glam::Vec3;
 use iris_engine::{
     geometry::shapes::Triangle,
     renderer::{
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
-        camera::{GpuCamera, OrbitCamera},
+        camera::OrbitCamera,
         color::Color,
         gui::color_edit,
         material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
@@ -18,8 +17,7 @@ struct Example {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer,
     bind_group: BindGroup,
-    camera: OrbitCamera,
-    camera_uniform: UniformBuffer<GpuCamera>,
+    camera_uniform: UniformBuffer<OrbitCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: UnlitMaterial,
@@ -37,9 +35,7 @@ impl iris_engine::renderer::app::App for Example {
             .vscroll(true)
             .default_open(false)
             .show(ctx, |ui| {
-                if color_edit(ui, &mut self.material.diffuse_color.data, "Diffuse Color") {
-                    self.material.diffuse_color.update(queue);
-                }
+                self.material.gui(ui, queue);
                 color_edit(ui, &mut self.clear_color, "Clear Color");
             });
     }
@@ -58,7 +54,7 @@ impl iris_engine::renderer::app::App for Example {
         let aspect_ratio = config.width as f32 / config.height as f32;
         let camera = OrbitCamera::new(2.0, aspect_ratio);
 
-        let camera_uniform = UniformBuffer::new(camera.to_gpu(), device);
+        let camera_uniform = UniformBuffer::new(camera, device);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
@@ -94,7 +90,6 @@ impl iris_engine::renderer::app::App for Example {
             vertex_buffer,
             index_buffer,
             bind_group,
-            camera,
             camera_uniform,
             pipeline,
             pipeline_wire,
@@ -104,8 +99,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
-        if self.camera.input(event) {
-            self.camera_uniform.data = self.camera.to_gpu();
+        if self.camera_uniform.data.input(event) {
             self.camera_uniform.update(queue);
         }
     }
@@ -117,8 +111,7 @@ impl iris_engine::renderer::app::App for Example {
         queue: &wgpu::Queue,
     ) {
         let aspect_ratio = config.width as f32 / config.height as f32;
-        self.camera.set_projection(aspect_ratio);
-        self.camera_uniform.data = self.camera.to_gpu();
+        self.camera_uniform.data.set_projection(aspect_ratio);
         self.camera_uniform.update(queue);
     }
 

@@ -1,6 +1,10 @@
 use std::{fmt::Debug, mem};
 
+use bytemuck::{Pod, Zeroable};
+use itertools::Itertools;
 use wgpu::util::DeviceExt;
+
+use crate::GpuSendable;
 
 pub struct VertexBuffer<A> {
     pub vertices: Vec<A>,
@@ -55,9 +59,10 @@ pub struct UniformBuffer<T> {
 }
 
 impl<T> UniformBuffer<T> {
-    pub fn new(data: T, device: &wgpu::Device) -> Self
+    pub fn new<U>(data: T, device: &wgpu::Device) -> Self
     where
-        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
     {
         assert!(
             mem::align_of::<T>() % 4 == 0,
@@ -65,33 +70,54 @@ impl<T> UniformBuffer<T> {
         );
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[data]),
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
-        });
-        Self { data, buffer }
-    }
-    pub fn from_slice<U>(data: T, device: &wgpu::Device) -> Self
-    where
-        U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
-        T: AsRef<[U]>,
-    {
-        assert!(
-            mem::align_of::<T>() % 4 == 0,
-            "Data alignment needs to be multiple of 4"
-        );
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(data.as_ref()),
+            contents: bytemuck::cast_slice(&[data.to_gpu()]),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
         });
         Self { data, buffer }
     }
 
-    pub fn update(&self, queue: &wgpu::Queue)
+    pub fn update<U>(&self, queue: &wgpu::Queue)
     where
-        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
     {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data]));
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.to_gpu()]));
+    }
+}
+#[derive(Debug)]
+pub struct UniformBufferVec<T> {
+    pub data: Vec<T>,
+    pub buffer: wgpu::Buffer,
+}
+
+impl<T> UniformBufferVec<T> {
+    pub fn new<U>(data: &[T], device: &wgpu::Device) -> Self
+    where
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U> + Clone + Copy,
+    {
+        assert!(
+            mem::align_of::<T>() % 4 == 0,
+            "Data alignment needs to be multiple of 4"
+        );
+        let gpu_data: Vec<U> = data.iter().map(|d| d.to_gpu()).collect();
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&gpu_data),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::UNIFORM,
+        });
+        Self {
+            data: data.to_vec(),
+            buffer,
+        }
+    }
+    pub fn update<U>(&self, queue: &wgpu::Queue)
+    where
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
+    {
+        let gpu_data: Vec<U> = self.data.iter().map(|d| d.to_gpu()).collect();
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&gpu_data));
     }
 }
 
@@ -102,9 +128,10 @@ pub struct StorageBuffer<T> {
 }
 
 impl<T> StorageBuffer<T> {
-    pub fn new(data: T, device: &wgpu::Device) -> Self
+    pub fn new<U>(data: T, device: &wgpu::Device) -> Self
     where
-        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
     {
         assert!(
             mem::align_of::<T>() % 4 == 0,
@@ -112,47 +139,62 @@ impl<T> StorageBuffer<T> {
         );
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[data]),
+            contents: bytemuck::cast_slice(&[data.to_gpu()]),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
         });
         Self { data, buffer }
     }
-    pub fn from_container<U>(
-        data: T,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        max_objects: u64,
-    ) -> Self
+
+    pub fn update<U>(&self, queue: &wgpu::Queue)
     where
-        U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
-        T: AsRef<[U]>,
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
+    {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data.to_gpu()]));
+    }
+}
+
+#[derive(Debug)]
+pub struct StorageBufferVec<T> {
+    pub data: Vec<T>,
+    pub buffer: wgpu::Buffer,
+}
+
+impl<T> StorageBufferVec<T> {
+    pub fn new<U>(data: &[T], device: &wgpu::Device, queue: &wgpu::Queue, size: u64) -> Self
+    where
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U> + Clone + Copy,
     {
         assert!(
             mem::align_of::<T>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
+        let gpu_data: Vec<U> = data.iter().map(|d| d.to_gpu()).collect();
+
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: mem::size_of::<T>() as u64 * max_objects,
+            size: mem::size_of::<T>() as u64 * size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
             mapped_at_creation: false,
         });
-        queue.write_buffer(&buffer, 0, bytemuck::cast_slice(data.as_ref()));
-        Self { data, buffer }
+        queue.write_buffer(&buffer, 0, bytemuck::cast_slice(&gpu_data));
+        Self {
+            data: data.to_vec(),
+            buffer,
+        }
     }
-
-    pub fn update(&self, queue: &wgpu::Queue)
+    pub fn update<U>(&self, queue: &wgpu::Queue)
     where
-        T: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
     {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.data]));
-    }
-    pub fn update_vec<U>(&self, queue: &wgpu::Queue)
-    where
-        U: Debug + Clone + Copy + bytemuck::Pod + bytemuck::Zeroable,
-        T: AsRef<[U]>,
-    {
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(self.data.as_ref()));
+        if self.data.is_empty() {
+            queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[U::zeroed()]))
+        } else {
+            let gpu_data: Vec<U> = self.data.iter().map(|d| d.to_gpu()).collect();
+            queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&gpu_data));
+        }
     }
 }
 
