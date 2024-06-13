@@ -9,7 +9,7 @@ struct VertexInput {
 
 
 @group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<storage> lights: array<Light>;
+@group(0) @binding(1) var<storage,read> lights: array<Light>;
 @group(1) @binding(0) var texture: texture_2d<f32>;
 @group(1) @binding(1) var s_texture: sampler;
 @group(1) @binding(2) var<uniform> diffuse_color: vec3f;
@@ -85,7 +85,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
         let L = normalize(light_direction);
 
-        lighting += brdf(V, L, N, diffuse, intensity);
+        lighting += brdf(V, L, N, diffuse) * intensity;
     }
 
     return vec4<f32>(lighting + ambient * diffuse_color, 1.0);
@@ -103,7 +103,7 @@ struct Light {
 }
 const PI :f32= 3.14159265358979323846;
 
-fn brdf(V: vec3f, L: vec3f, N: vec3f, diffuse: vec3f, intensity: vec3f) -> vec3f {
+fn brdf(V: vec3f, L: vec3f, N: vec3f, diffuse: vec3f) -> vec3f {
     let H = normalize(L + V);
     let NdotH = saturate(dot(N, H));
     let LdotH = saturate(dot(L, H));
@@ -196,7 +196,7 @@ fn point_light(light_direction: vec3f, light: Light) -> vec3f {
     let attenuation_consts = light.custom_data.xyz;
 
     let attenuation = attenuation_consts[0] + attenuation_consts[1] * distance + attenuation_consts[2] * distance * distance;
-    var intensity = light_color / distance * distance;
+    var intensity = light_color / attenuation;
 
     if distance > range {
         intensity = vec3f(0.0);

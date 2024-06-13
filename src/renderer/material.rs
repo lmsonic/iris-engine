@@ -1,6 +1,6 @@
 use egui::Ui;
 use image::{DynamicImage, ImageBuffer};
-use wgpu::{core::device::queue, include_wgsl, ShaderModuleDescriptor};
+use wgpu::{include_wgsl, ShaderModuleDescriptor};
 
 use super::{
     bind_group::{BindGroup, BindGroupBuilder},

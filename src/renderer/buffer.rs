@@ -1,7 +1,6 @@
 use std::{fmt::Debug, mem};
 
 use bytemuck::{Pod, Zeroable};
-use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 use crate::GpuSendable;
@@ -65,7 +64,7 @@ impl<T> UniformBuffer<T> {
         T: GpuSendable<U>,
     {
         assert!(
-            mem::align_of::<T>() % 4 == 0,
+            mem::align_of::<U>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -97,7 +96,7 @@ impl<T> UniformBufferVec<T> {
         T: GpuSendable<U> + Clone + Copy,
     {
         assert!(
-            mem::align_of::<T>() % 4 == 0,
+            mem::align_of::<U>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
         let gpu_data: Vec<U> = data.iter().map(|d| d.to_gpu()).collect();
@@ -134,7 +133,7 @@ impl<T> StorageBuffer<T> {
         T: GpuSendable<U>,
     {
         assert!(
-            mem::align_of::<T>() % 4 == 0,
+            mem::align_of::<U>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -163,15 +162,14 @@ pub struct StorageBufferVec<T> {
 impl<T> StorageBufferVec<T> {
     pub fn new<U>(data: &[T], device: &wgpu::Device, queue: &wgpu::Queue, size: u64) -> Self
     where
-        U: Clone + Copy + Pod + Zeroable,
+        U: Clone + Copy + Pod + Zeroable + Debug,
         T: GpuSendable<U> + Clone + Copy,
     {
         assert!(
-            mem::align_of::<T>() % 4 == 0,
+            mem::align_of::<U>() % 4 == 0,
             "Data alignment needs to be multiple of 4"
         );
         let gpu_data: Vec<U> = data.iter().map(|d| d.to_gpu()).collect();
-
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: mem::size_of::<T>() as u64 * size,

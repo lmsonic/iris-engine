@@ -125,7 +125,7 @@ fn point_light(light_direction: vec3f, light: Light) -> vec3f {
     let attenuation_consts = light.custom_data.xyz;
 
     let attenuation = attenuation_consts[0] + attenuation_consts[1] * distance + attenuation_consts[2] * distance * distance;
-    var intensity = light_color / distance * distance;
+    var intensity = light_color / attenuation;
 
     if distance > range {
         intensity = vec3f(0.0);

@@ -30,6 +30,7 @@ impl iris_engine::renderer::app::App for Example {
         wgpu::Features::POLYGON_MODE_LINE
     }
     fn gui(&mut self, ctx: &egui::Context, queue: &wgpu::Queue) {
+        dbg!(self.light_storage.data.len());
         egui::Window::new("Boat Pbr example")
             .resizable(true)
             .vscroll(true)

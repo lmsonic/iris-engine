@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
 use egui::Ui;
-use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
+use glam::{Mat4, Vec3, Vec4};
 
 use crate::GpuSendable;
 
@@ -87,31 +87,7 @@ impl Light {
         changed
     }
 }
-impl Light {
-    pub fn from_gpu(light: &GpuLight) -> Self {
-        if light.position.w == 0.0 {
-            Self::DirectionalLight(DirectionalLight::new(
-                light.color_range.xyz().into(),
-                -light.position.xyz(),
-            ))
-        } else if light.custom_data.w == -1.0 {
-            Self::PointLight(PointLight::new(
-                light.color_range.xyz().into(),
-                light.position.xyz(),
-                light.color_range.w,
-                light.custom_data.xyz().into(),
-            ))
-        } else {
-            Self::SpotLight(SpotLight::new(
-                light.color_range.xyz().into(),
-                light.position.xyz(),
-                light.custom_data.xyz(),
-                light.color_range.w,
-                light.custom_data.w,
-            ))
-        }
-    }
-}
+
 #[derive(Debug, Clone, Copy)]
 pub struct DirectionalLight {
     pub direction: Vec3,
@@ -160,7 +136,7 @@ impl Default for PointLight {
             color: Color::WHITE.into(),
             position: Vec3::ZERO,
             range: 100.0,
-            attenuation: [0.0, 2.0, 0.0],
+            attenuation: [0.0, 0.0, 1.0],
         }
     }
 }
@@ -173,19 +149,6 @@ impl PointLight {
             color: color.into(),
             range,
             attenuation,
-        }
-    }
-    pub fn to_gpu(&self) -> GpuLight {
-        GpuLight {
-            position: self.position.extend(1.0),
-            color_range: self.color.extend(self.range),
-            custom_data: Vec4::new(
-                self.attenuation[0],
-                self.attenuation[1],
-                self.attenuation[2],
-                // To flag its a point light
-                -1.0,
-            ),
         }
     }
 }

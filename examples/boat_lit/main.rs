@@ -88,8 +88,10 @@ impl iris_engine::renderer::app::App for Example {
 
         let camera_uniform = UniformBuffer::new(camera, device);
 
-        let point_light = PointLight::new(Color::WHITE, Vec3::ONE, 100.0, [0.0, 2.0, 0.0]);
-
+        let point_light = PointLight {
+            position: Vec3::ONE,
+            ..Default::default()
+        };
         let light_storage = StorageBufferVec::new(&[point_light.into()], device, queue, 16);
 
         let bind_group = BindGroupBuilder::new()
