@@ -27,7 +27,7 @@ pub enum Light {
 
 impl GpuSendable<GpuLight> for Light {
     fn to_gpu(&self) -> GpuLight {
-        match self {
+        match *self {
             Self::DirectionalLight(light) => light.to_gpu(),
             Self::PointLight(light) => light.to_gpu(),
             Self::SpotLight(light) => light.to_gpu(),
@@ -53,7 +53,7 @@ impl From<SpotLight> for Light {
 impl Light {
     pub fn gui(&mut self, ui: &mut Ui) -> bool {
         let mut changed = false;
-        match self {
+        match *self {
             Self::DirectionalLight(ref mut light) => {
                 ui.label("Directional Light");
                 changed |= color_edit(ui, &mut light.color, "Color");

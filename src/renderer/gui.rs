@@ -192,9 +192,9 @@ impl EguiRenderer {
             .state
             .egui_ctx()
             .tessellate(full_output.shapes, self.state.egui_ctx().pixels_per_point());
-        for (id, image_delta) in &full_output.textures_delta.set {
+        for (id, image_delta) in full_output.textures_delta.set {
             self.renderer
-                .update_texture(device, queue, *id, image_delta);
+                .update_texture(device, queue, id, &image_delta);
         }
         self.renderer
             .update_buffers(device, queue, encoder, &tris, screen_descriptor);

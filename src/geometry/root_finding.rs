@@ -6,7 +6,7 @@ use roots::{
 };
 
 fn roots_to_vec<F: FloatType>(roots: &Roots<F>) -> Vec<F> {
-    match roots {
+    match *roots {
         Roots::No(x) => x.to_vec(),
         Roots::One(x) => x.to_vec(),
         Roots::Two(x) => x.to_vec(),

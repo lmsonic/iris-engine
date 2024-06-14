@@ -132,10 +132,10 @@ impl Meshable for Cuboid {
 
         let vertices: Vec<Vertex> = vertices
             .iter()
-            .map(|(p, n, u)| Vertex {
-                position: Vec3::from(*p),
-                normal: Vec3::from(*n),
-                uv: Vec2::from(*u),
+            .map(|&(p, n, u)| Vertex {
+                position: Vec3::from(p),
+                normal: Vec3::from(n),
+                uv: Vec2::from(u),
                 ..Default::default()
             })
             .collect();
@@ -193,8 +193,8 @@ impl Sphere {
             .iter()
             .zip(generated.raw_data())
             .map(|(pn, uv)| {
-                let position: Vec3 = Vec3::new(pn.x, pn.y, pn.z) * self.radius;
-                let normal: Vec3 = Vec3::new(pn.x, pn.y, pn.z);
+                let position = Vec3::new(pn.x, pn.y, pn.z) * self.radius;
+                let normal = Vec3::new(pn.x, pn.y, pn.z);
                 let uv: Vec2 = Vec2::from(*uv);
                 Vertex {
                     position,
