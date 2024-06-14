@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use approx::{abs_diff_eq, assert_abs_diff_eq};
 use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
@@ -14,15 +14,14 @@ pub struct Triangle {
 }
 
 impl Triangle {
-    #[must_use]
     pub const fn new(v1: Vec3, v2: Vec3, v3: Vec3) -> Self {
         Self { v1, v2, v3 }
     }
-    #[must_use]
+
     pub fn normal(&self) -> Vec3 {
         (self.v2 - self.v1).cross(self.v3 - self.v1)
     }
-    #[must_use]
+
     pub fn is_inside_triangle(&self, point: Vec3) -> bool {
         // Calculate baricentric coordinates to check if it is inside the triangle
         let r = point - self.v1;
@@ -72,11 +71,10 @@ pub struct Cuboid {
 }
 
 impl Cuboid {
-    #[must_use]
     pub const fn new(size: Vec3) -> Self {
         Self { size }
     }
-    #[must_use]
+
     pub fn is_point_on_surface(&self, point: Vec3) -> bool {
         abs_diff_eq!(point.x, 0.0, epsilon = 1e-2)
             || abs_diff_eq!(point.x, self.size.x, epsilon = 1e-2)
@@ -85,7 +83,7 @@ impl Cuboid {
             || abs_diff_eq!(point.z, 0.0, epsilon = 1e-2)
             || abs_diff_eq!(point.z, self.size.z, epsilon = 1e-2)
     }
-    #[must_use]
+
     pub fn is_point_inside(&self, point: Vec3) -> bool {
         point.x >= 0.0 && point.x <= self.size.x
             || point.y >= 0.0 && point.y <= self.size.y
@@ -160,31 +158,31 @@ pub struct Sphere {
 }
 
 impl Sphere {
-    #[must_use]
     pub const fn new(radius: f32) -> Self {
         Self { radius }
     }
-    #[must_use]
+
     // Point must be on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
         Self::gradient(point)
     }
-    #[must_use]
+
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         self.radius.mul_add(-self.radius, p.dot(p))
     }
-    #[must_use]
+
     pub(crate) fn gradient(p: Vec3) -> Vec3 {
         2.0 * p * p
     }
+
     pub fn ico(&self, subdivisions: usize) -> Mesh {
         let generated = IcoSphere::new(subdivisions, |point| {
             let inclination = point.y.acos();
             let azimuth = point.z.atan2(point.x);
 
-            let norm_inclination = inclination / std::f32::consts::PI;
-            let norm_azimuth = 0.5 - (azimuth / std::f32::consts::TAU);
+            let norm_inclination = inclination / PI;
+            let norm_azimuth = 0.5 - (azimuth / TAU);
 
             [norm_azimuth, norm_inclination]
         });
@@ -216,6 +214,7 @@ impl Sphere {
         let indices = indices.into_iter().collect();
         Mesh::new(vertices, indices)
     }
+
     pub fn uv(&self, sectors: usize, stacks: usize) -> Mesh {
         // From https://docs.rs/bevy_render/latest/src/bevy_render/mesh/primitives/dim3/sphere.rs.html#182
 
@@ -231,12 +230,12 @@ impl Sphere {
 
         let mut indices = Vec::with_capacity(stacks * sectors * 2 * 3);
 
-        for i in 0..stacks + 1 {
-            let stack_angle = PI / 2. - (i as f32) * stack_step;
+        for i in 0..=stacks {
+            let stack_angle = (i as f32).mul_add(-stack_step, FRAC_PI_2);
             let xy = self.radius * stack_angle.cos();
             let y = self.radius * stack_angle.sin();
 
-            for j in 0..sectors + 1 {
+            for j in 0..=sectors {
                 let sector_angle = (j as f32) * sector_step;
                 let x = xy * sector_angle.cos();
                 let z = xy * sector_angle.sin();
@@ -278,7 +277,7 @@ impl Sphere {
 }
 impl Meshable for Sphere {
     fn mesh(&self) -> Mesh {
-        Sphere::uv(self, 18, 20)
+        Self::uv(self, 18, 20)
     }
 }
 
@@ -288,19 +287,18 @@ pub struct Ellipsoid {
 }
 
 impl Ellipsoid {
-    #[must_use]
     pub const fn new(radius: Vec3) -> Self {
         Self { radius }
     }
-    #[must_use]
+
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         (p * p).dot((self.radius * self.radius).recip()) - 1.0
     }
-    #[must_use]
+
     pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
         2.0 * p * (self.radius * self.radius).recip()
     }
-    #[must_use]
+
     // Assuming point is on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
@@ -316,7 +314,6 @@ pub struct Cylinder {
 }
 
 impl Cylinder {
-    #[must_use]
     pub const fn new(radius_x: f32, radius_y: f32, height: f32) -> Self {
         Self {
             radius_x,
@@ -324,13 +321,13 @@ impl Cylinder {
             height,
         }
     }
-    #[must_use]
+
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         let p_xy = p.xy();
         let radius_xy = Vec2::new(self.radius_x, self.radius_y);
         (p_xy * p_xy).dot((radius_xy * radius_xy).recip()) - 1.0
     }
-    #[must_use]
+
     pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
         let p_xy = p.xy();
         let radius_xy = Vec2::new(self.radius_x, self.radius_y);
@@ -343,7 +340,7 @@ impl Cylinder {
             0.0
         })
     }
-    #[must_use]
+
     // Assuming point is on surface
     pub fn normal(&self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);

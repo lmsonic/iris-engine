@@ -25,10 +25,6 @@ struct Example {
 }
 
 impl iris_engine::renderer::app::App for Example {
-    fn optional_features() -> wgpu::Features {
-        wgpu::Features::POLYGON_MODE_LINE
-    }
-
     fn gui(&mut self, ctx: &egui::Context, queue: &wgpu::Queue) {
         egui::Window::new("Triangle example")
             .resizable(true)
@@ -65,20 +61,16 @@ impl iris_engine::renderer::app::App for Example {
             .cull_mode(None)
             .build::<Vertex>(device, config.format);
 
-        let pipeline_wire = if device
+        let pipeline_wire = device
             .features()
             .contains(wgpu::Features::POLYGON_MODE_LINE)
-        {
-            Some(
+            .then(|| {
                 RenderPipelineWire::new()
                     .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
                     .cull_mode(None)
-                    .build::<Vertex>(device, config.format),
-            )
-        } else {
-            None
-        };
+                    .build::<Vertex>(device, config.format)
+            });
         let clear_color = Color {
             r: 0.1,
             g: 0.2,
@@ -86,7 +78,7 @@ impl iris_engine::renderer::app::App for Example {
         };
 
         // Done
-        Example {
+        Self {
             vertex_buffer,
             index_buffer,
             bind_group,
@@ -99,7 +91,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn input(&mut self, event: winit::event::WindowEvent, queue: &wgpu::Queue) {
-        if self.camera_uniform.data.input(event) {
+        if self.camera_uniform.data.input(&event) {
             self.camera_uniform.update(queue);
         }
     }

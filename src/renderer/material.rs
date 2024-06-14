@@ -15,6 +15,7 @@ pub trait Material<'a> {
     fn shader() -> ShaderModuleDescriptor<'a>;
     fn bind_group(&self) -> &BindGroup;
 }
+#[derive(Debug)]
 pub struct UnlitMaterial {
     pub diffuse_texture: Texture,
     pub diffuse_color: UniformBuffer<Color>,
@@ -29,7 +30,7 @@ impl UnlitMaterial {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct UnlitMaterialBuilder {
     diffuse_texture: Option<Texture>,
     diffuse_color: Option<Color>,
@@ -37,7 +38,7 @@ pub struct UnlitMaterialBuilder {
 
 impl UnlitMaterialBuilder {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
     pub fn diffuse_texture(self, diffuse_texture: Texture) -> Self {
         Self {
@@ -71,6 +72,7 @@ impl UnlitMaterialBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct LitMaterial {
     pub diffuse_texture: Texture,
     pub diffuse_color: UniformBuffer<Color>,
@@ -104,7 +106,7 @@ impl LitMaterial {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct LitMaterialBuilder {
     diffuse_texture: Option<Texture>,
     diffuse_color: Option<Color>,
@@ -116,7 +118,7 @@ pub struct LitMaterialBuilder {
 
 impl LitMaterialBuilder {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
     pub fn diffuse_texture(self, diffuse_texture: Texture) -> Self {
         Self {
@@ -182,15 +184,16 @@ impl LitMaterialBuilder {
         LitMaterial {
             diffuse_texture,
             diffuse_color,
-            bind_group,
             normal_map,
             specular_color,
             specular_exponent,
             ambient,
+            bind_group,
         }
     }
 }
 
+#[derive(Debug)]
 pub struct PbrMaterial {
     pub diffuse_texture: Texture,
     pub diffuse_color: UniformBuffer<Color>,
@@ -221,7 +224,7 @@ impl PbrMaterial {
         }
     }
 }
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PbrMaterialBuilder {
     diffuse_texture: Option<Texture>,
     diffuse_color: Option<Color>,
@@ -234,7 +237,7 @@ pub struct PbrMaterialBuilder {
 
 impl PbrMaterialBuilder {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
     pub fn diffuse_texture(self, diffuse_texture: Texture) -> Self {
         Self {
@@ -307,12 +310,12 @@ impl PbrMaterialBuilder {
         PbrMaterial {
             diffuse_texture,
             diffuse_color,
-            bind_group,
             normal_map,
-            ior,
             specular,
+            ior,
             roughness,
             ambient,
+            bind_group,
         }
     }
 }
@@ -344,6 +347,7 @@ impl<'a> Material<'a> for LitMaterial {
         include_wgsl!("lit.wgsl")
     }
 }
+#[derive(Debug, Clone, Copy)]
 pub struct MeshPipelineBuilder;
 
 impl MeshPipelineBuilder {

@@ -1,7 +1,6 @@
 use glam::Vec3;
 
 pub trait Vec3ReflectExt {
-    #[must_use]
     // Assumes normal vectors
     fn reflect(&self, normal: Self) -> Self;
 }
@@ -12,7 +11,6 @@ impl Vec3ReflectExt for Vec3 {
     }
 }
 pub trait Vec3RefractExt {
-    #[must_use]
     // Assumes normal vectors
     fn refract(&self, normal: Self, in_index: f32, out_index: f32) -> Self;
 }
@@ -48,7 +46,7 @@ mod tests {
     prop_compose! {
         fn any_normal(range:RangeInclusive<f32>)
                     (n in any_vec3(range).prop_filter_map("normal needs to be able to be normalized",
-                    glam::Vec3::try_normalize))
+                    Vec3::try_normalize))
                     -> Vec3 {
             n
         }

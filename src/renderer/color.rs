@@ -13,12 +13,12 @@ pub struct Color {
 }
 impl From<wgpu::Color> for Color {
     fn from(value: wgpu::Color) -> Self {
-        Color::new(value.r as f32, value.g as f32, value.b as f32)
+        Self::new(value.r as f32, value.g as f32, value.b as f32)
     }
 }
 impl From<Color> for wgpu::Color {
     fn from(value: Color) -> Self {
-        wgpu::Color {
+        Self {
             r: value.r.into(),
             g: value.g.into(),
             b: value.b.into(),
@@ -28,7 +28,7 @@ impl From<Color> for wgpu::Color {
 }
 impl From<[f32; 3]> for Color {
     fn from(value: [f32; 3]) -> Self {
-        Color::new(value[0], value[1], value[2])
+        Self::new(value[0], value[1], value[2])
     }
 }
 impl From<Color> for [f32; 3] {
@@ -39,12 +39,12 @@ impl From<Color> for [f32; 3] {
 
 impl From<Vec3> for Color {
     fn from(value: Vec3) -> Self {
-        Color::new(value.x, value.y, value.z)
+        Self::new(value.x, value.y, value.z)
     }
 }
 impl From<Color> for Vec3 {
     fn from(value: Color) -> Self {
-        Vec3::new(value.r, value.g, value.b)
+        Self::new(value.r, value.g, value.b)
     }
 }
 
@@ -54,7 +54,7 @@ impl Color {
     pub const RED: Self = Self::new(1.0, 0.0, 0.0);
     pub const GREEN: Self = Self::new(0.0, 1.0, 0.0);
     pub const BLUE: Self = Self::new(0.0, 0.0, 1.0);
-    #[must_use]
+
     pub const fn new(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b }
     }

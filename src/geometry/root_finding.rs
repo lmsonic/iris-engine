@@ -15,28 +15,24 @@ fn roots_to_vec<F: FloatType>(roots: &Roots<F>) -> Vec<F> {
     }
 }
 
-#[must_use]
 #[inline]
 pub fn solve_linear<F: FloatType>(a: F, b: F) -> Vec<F> {
     let roots = find_roots_linear(a, b);
     roots_to_vec(&roots)
 }
 
-#[must_use]
 #[allow(clippy::many_single_char_names)]
 pub fn solve_quadratic<F: FloatType>(a: F, b: F, c: F) -> Vec<F> {
     let roots = find_roots_quadratic(a, b, c);
     roots_to_vec(&roots)
 }
 
-#[must_use]
 #[allow(clippy::many_single_char_names)]
 pub fn solve_cubic<F: FloatType>(a: F, b: F, c: F, d: F) -> Vec<F> {
     let roots = find_roots_cubic(a, b, c, d);
     roots_to_vec(&roots)
 }
 
-#[must_use]
 #[allow(clippy::many_single_char_names)]
 pub fn solve_quartic<F: FloatType>(a: F, b: F, c: F, d: F, e: F) -> Vec<F> {
     let roots = find_roots_quartic(a, b, c, d, e);
@@ -74,7 +70,6 @@ pub fn brent_method<F: FnMut(f64) -> f64>(
             max_iter: iterations,
         },
     );
-    dbg!(&result);
     result.ok()
 }
 

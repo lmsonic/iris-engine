@@ -10,7 +10,7 @@ pub struct Plane {
 }
 
 impl AbsDiffEq for Plane {
-    type Epsilon = <Vec3 as approx::AbsDiffEq>::Epsilon;
+    type Epsilon = <Vec3 as AbsDiffEq>::Epsilon;
 
     fn default_epsilon() -> Self::Epsilon {
         Vec3::default_epsilon()
@@ -42,7 +42,6 @@ impl RelativeEq for Plane {
 }
 
 impl Plane {
-    #[must_use]
     pub fn new(point: Vec3, normal: Vec3) -> Self {
         let normal = normal.normalize();
         Self {
@@ -50,7 +49,7 @@ impl Plane {
             normal,
         }
     }
-    #[must_use]
+
     pub fn from_vec4(value: Vec4) -> Self {
         let normal = value.truncate();
         let length = normal.length();
@@ -61,22 +60,20 @@ impl Plane {
         }
     }
 
-    #[must_use]
     pub fn homogeneous(&self) -> Vec4 {
         self.normal.extend(self.distance)
     }
-    #[must_use]
+
     pub fn signed_distance_to_point(&self, point: Vec3) -> f32 {
         let homogeneous = self.homogeneous();
         let point = point.extend(1.0);
         homogeneous.dot(point)
     }
-    #[must_use]
+
     pub fn is_on_plane(&self, point: Vec3) -> bool {
         abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1e-3)
     }
 
-    #[must_use]
     pub fn intersection_with_planes(&self, p1: Self, p2: Self) -> Option<Vec3> {
         // Rows are the normals
         let matrix = Mat3::from_cols(self.normal, p1.normal, p2.normal).transpose();
@@ -89,7 +86,7 @@ impl Plane {
             Some(result)
         }
     }
-    #[must_use]
+
     pub fn intersection_with_plane(&self, other: Self) -> Option<Ray> {
         let direction = self.normal.cross(other.normal);
         let line_plane = Self {

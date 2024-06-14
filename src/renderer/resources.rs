@@ -26,6 +26,7 @@ const fn bit_width(x: u32) -> u32 {
     }
 }
 
+#[allow(clippy::many_single_char_names)]
 pub fn convert_height_to_normal_map(image: &GrayImage, scale: f32) -> RgbImage {
     // TODO: convert this into a compute shader
     let (width, height) = image.dimensions();
@@ -41,6 +42,7 @@ pub fn convert_height_to_normal_map(image: &GrayImage, scale: f32) -> RgbImage {
             let l: LinLuma = SrgbLuma::new(image.get_pixel(x_left, y).0[0]).into_linear();
             let t: LinLuma = SrgbLuma::new(image.get_pixel(x, y_top).0[0]).into_linear();
             let b: LinLuma = SrgbLuma::new(image.get_pixel(x, y_bottom).0[0]).into_linear();
+
             let tr: LinLuma = SrgbLuma::new(image.get_pixel(x_right, y_top).0[0]).into_linear();
             let tl: LinLuma = SrgbLuma::new(image.get_pixel(x_left, y_top).0[0]).into_linear();
             let br: LinLuma = SrgbLuma::new(image.get_pixel(x_right, y_bottom).0[0]).into_linear();
@@ -67,7 +69,7 @@ pub fn load_texture(
     let mip_level_count = get_max_mip_level_count(image.width(), image.height());
     let texture_descriptor = wgpu::TextureDescriptor {
         label: None,
-        size: wgpu::Extent3d {
+        size: Extent3d {
             width: image.width(),
             height: image.height(),
             depth_or_array_layers: 1,
@@ -112,7 +114,6 @@ pub fn load_texture(
     });
     (texture, view)
 }
-
 pub fn get_texture_data(
     texture: &wgpu::Texture,
     device: &wgpu::Device,
@@ -182,7 +183,6 @@ pub fn get_texture_data(
 
     (buffer, height, width)
 }
-
 pub fn save_texture(
     path: impl AsRef<Path>,
     texture: &wgpu::Texture,
@@ -226,10 +226,26 @@ pub fn write_mipmaps(queue: &wgpu::Queue, texture: &wgpu::Texture, image: Dynami
                     let p10 = &previous_level_pixels[i10..(i10 + 4)];
                     let p11 = &previous_level_pixels[i11..(i11 + 4)];
                     // Average
-                    let r = (p00[0] as u32 + p01[0] as u32 + p10[0] as u32 + p11[0] as u32) / 4;
-                    let g = (p00[1] as u32 + p01[1] as u32 + p10[1] as u32 + p11[1] as u32) / 4;
-                    let b = (p00[2] as u32 + p01[2] as u32 + p10[2] as u32 + p11[2] as u32) / 4;
-                    let a = (p00[3] as u32 + p01[3] as u32 + p10[3] as u32 + p11[3] as u32) / 4;
+                    let r = (u32::from(p00[0])
+                        + u32::from(p01[0])
+                        + u32::from(p10[0])
+                        + u32::from(p11[0]))
+                        / 4;
+                    let g = (u32::from(p00[1])
+                        + u32::from(p01[1])
+                        + u32::from(p10[1])
+                        + u32::from(p11[1]))
+                        / 4;
+                    let b = (u32::from(p00[2])
+                        + u32::from(p01[2])
+                        + u32::from(p10[2])
+                        + u32::from(p11[2]))
+                        / 4;
+                    let a = (u32::from(p00[3])
+                        + u32::from(p01[3])
+                        + u32::from(p10[3])
+                        + u32::from(p11[3]))
+                        / 4;
                     pixels.extend([r as u8, g as u8, b as u8, a as u8]);
                 }
             }
@@ -256,7 +272,6 @@ pub fn write_mipmaps(queue: &wgpu::Queue, texture: &wgpu::Texture, image: Dynami
 pub trait VertexAttributeLayout {
     fn layout() -> wgpu::VertexBufferLayout<'static>;
 }
-
 pub fn load_geometry(path: impl AsRef<Path> + Debug) -> Mesh {
     let (models, _) = tobj::load_obj(
         path,

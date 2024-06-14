@@ -14,7 +14,6 @@ pub struct Frustum {
 }
 
 impl Frustum {
-    #[must_use]
     pub const fn new(
         near: Plane,
         far: Plane,
@@ -33,7 +32,7 @@ impl Frustum {
         }
     }
     // TODO: this probably needs builder pattern
-    #[must_use]
+
     pub fn from_matrix_gl(matrix: Mat4, reverse_z: bool) -> Self {
         let r1 = matrix.row(0);
         let r2 = matrix.row(1);
@@ -58,7 +57,7 @@ impl Frustum {
             top,
         }
     }
-    #[must_use]
+
     pub fn from_matrix(matrix: Mat4, reverse_z: bool) -> Self {
         let r1 = matrix.row(0);
         let r2 = matrix.row(1);
@@ -94,7 +93,6 @@ pub struct PerspectiveFrustum {
 }
 
 impl PerspectiveFrustum {
-    #[must_use]
     pub const fn new(fov_y: f32, aspect_ratio: f32, near: f32, far: f32) -> Self {
         Self {
             fov_y,
@@ -104,27 +102,26 @@ impl PerspectiveFrustum {
         }
     }
 
-    #[must_use]
     pub fn matrix_lh(&self) -> Mat4 {
         Mat4::perspective_lh(self.fov_y, self.aspect_ratio, self.near, self.far)
     }
-    #[must_use]
+
     pub fn matrix_rh(&self) -> Mat4 {
         Mat4::perspective_rh(self.fov_y, self.aspect_ratio, self.near, self.far)
     }
-    #[must_use]
+
     pub fn matrix_gl(&self) -> Mat4 {
         Mat4::perspective_rh_gl(self.fov_y, self.aspect_ratio, self.near, self.far)
     }
-    #[must_use]
+
     pub fn matrix_infinite_lh(&self) -> Mat4 {
         Mat4::perspective_infinite_lh(self.fov_y, self.aspect_ratio, self.near)
     }
-    #[must_use]
+
     pub fn matrix_infinite_rh(&self) -> Mat4 {
         Mat4::perspective_infinite_rh(self.fov_y, self.aspect_ratio, self.near)
     }
-    #[must_use]
+
     pub fn matrix_infinite_gl(&self) -> Mat4 {
         let f = 1.0 / f32::tan(0.5 * self.fov_y);
         Mat4::from_cols(
@@ -134,15 +131,15 @@ impl PerspectiveFrustum {
             Vec4::new(0.0, 0.0, -2.0 * self.near, 0.0),
         )
     }
-    #[must_use]
+
     pub fn matrix_infinite_reverse_lh(&self) -> Mat4 {
         Mat4::perspective_infinite_reverse_lh(self.fov_y, self.aspect_ratio, self.near)
     }
-    #[must_use]
+
     pub fn matrix_infinite_reverse_rh(&self) -> Mat4 {
         Mat4::perspective_infinite_reverse_rh(self.fov_y, self.aspect_ratio, self.near)
     }
-    #[must_use]
+
     pub fn matrix_infinite_reverse_gl(&self) -> Mat4 {
         let f = 1.0 / f32::tan(0.5 * self.fov_y);
         Mat4::from_cols(
@@ -152,12 +149,12 @@ impl PerspectiveFrustum {
             Vec4::new(0.0, 0.0, 2.0 * self.near, 0.0),
         )
     }
-    #[must_use]
+
     pub fn focal_distance(&self) -> f32 {
         ((self.fov_y * 0.5).tan() * self.aspect_ratio).recip()
     }
     // TODO: this probably needs builder pattern
-    #[must_use]
+
     pub fn frustum(&self, is_left_handed: bool) -> Frustum {
         let focal_distance = self.focal_distance();
         let aspect_ratio = self.aspect_ratio;
@@ -193,7 +190,6 @@ impl PerspectiveFrustum {
     }
 }
 
-#[must_use]
 pub fn clip_projection_matrix(clip_plane: Plane, mut matrix: Mat4) -> Mat4 {
     let inverse = matrix.inverse();
     let clip_plane = clip_plane.homogeneous();
@@ -229,7 +225,6 @@ pub struct OrthographicFrustum {
 }
 
 impl OrthographicFrustum {
-    #[must_use]
     pub const fn new(size: f32, aspect_ratio: f32, near: f32, far: f32) -> Self {
         Self {
             size,
@@ -239,7 +234,6 @@ impl OrthographicFrustum {
         }
     }
 
-    #[must_use]
     pub fn matrix_lh(&self) -> Mat4 {
         let half_width = self.size * 0.5;
         let half_height = self.size * 0.5 * self.aspect_ratio;
@@ -253,7 +247,7 @@ impl OrthographicFrustum {
             self.far,
         )
     }
-    #[must_use]
+
     pub fn matrix_rh(&self) -> Mat4 {
         let half_width = self.size * 0.5;
         let half_height = self.size * 0.5 * self.aspect_ratio;
@@ -267,7 +261,7 @@ impl OrthographicFrustum {
             self.far,
         )
     }
-    #[must_use]
+
     pub fn matrix_gl(&self) -> Mat4 {
         let half_width = self.size * 0.5;
         let half_height = self.size * 0.5 * self.aspect_ratio;
@@ -282,7 +276,6 @@ impl OrthographicFrustum {
         )
     }
 
-    #[must_use]
     pub fn frustum(&self, is_left_handed: bool) -> Frustum {
         let half_size = self.size * 0.5;
 

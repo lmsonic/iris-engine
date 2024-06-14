@@ -65,7 +65,7 @@ impl OrbitCamera {
         self.projection = Mat4::perspective_rh(FRAC_PI_4, aspect_ratio, 0.1, 10.0);
     }
 
-    pub fn input(&mut self, event: WindowEvent) -> bool {
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 const SENSITIVITY: f32 = 0.0005;
@@ -77,10 +77,10 @@ impl OrbitCamera {
                     self.pitch = self.pitch.clamp(-FRAC_PI_2 + 0.01, FRAC_PI_2 - 0.01);
                     return true;
                 }
-                self.last_mouse_pos = position;
+                self.last_mouse_pos = *position;
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                if button == MouseButton::Middle {
+                if *button == MouseButton::Middle {
                     match state {
                         ElementState::Pressed => self.drag = true,
                         ElementState::Released => self.drag = false,
@@ -96,7 +96,7 @@ impl OrbitCamera {
                 match delta {
                     MouseScrollDelta::LineDelta(_, y) => self.orbit_radius -= y * SENSITIVITY,
                     MouseScrollDelta::PixelDelta(PhysicalPosition { y, .. }) => {
-                        self.orbit_radius -= y as f32 * SENSITIVITY;
+                        self.orbit_radius -= *y as f32 * SENSITIVITY;
                     }
                 }
                 self.orbit_radius = self.orbit_radius.max(0.1);

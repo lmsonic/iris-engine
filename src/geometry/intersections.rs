@@ -7,8 +7,8 @@ use super::{
 use approx::abs_diff_eq;
 use glam::Vec3;
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Ray {
-    #[must_use]
     pub fn intersect_plane(&self, plane: Plane) -> Option<Vec3> {
         let v = self.direction.extend(0.0);
         let homogeneous = plane.homogeneous();
@@ -20,15 +20,10 @@ impl Ray {
             let s = self.start.extend(1.0);
             let num = homogeneous.dot(s);
             let t = -(num / den);
-            if t > 0.0 {
-                let point = self.point(t);
-                Some(point)
-            } else {
-                None
-            }
+            (t > 0.0).then(|| self.point(t))
         }
     }
-    #[must_use]
+
     pub fn intersect_triangle(&self, triangle: Triangle) -> Option<Vec3> {
         let normal = triangle.normal();
         let triangle_plane = Plane::new(triangle.v1, normal);
@@ -41,7 +36,7 @@ impl Ray {
         }
         None
     }
-    #[must_use]
+
     #[allow(clippy::similar_names, clippy::useless_let_if_seq)]
     pub fn intersect_cuboid(&self, cuboid: Cuboid) -> Option<Vec3> {
         let plane_x0 = Plane::new(Vec3::ZERO, Vec3::X);
@@ -76,7 +71,7 @@ impl Ray {
 
         None
     }
-    #[must_use]
+
     pub fn intersect_sphere(&self, sphere: Sphere) -> Option<Vec3> {
         let delta = self.start;
         let a = self.direction.length_squared(); // Should be 1.0
@@ -89,9 +84,9 @@ impl Ray {
         if t <= 0.0 {
             return None;
         }
-        Some(self.point(t as f32))
+        Some(self.point(t))
     }
-    #[must_use]
+
     #[allow(clippy::similar_names, clippy::many_single_char_names)]
     pub fn intersect_ellipsoid(&self, ellipse: Ellipsoid) -> Option<Vec3> {
         let vx = self.direction.x;
@@ -124,10 +119,9 @@ impl Ray {
             .filter(|x| *x > 0.0)
             .min_by(f32::total_cmp)?;
 
-        Some(self.point(t as f32))
+        Some(self.point(t))
     }
 
-    #[must_use]
     #[allow(clippy::similar_names, clippy::many_single_char_names)]
 
     pub fn intersect_cylinder(&self, cylinder: Cylinder) -> Option<Vec3> {
@@ -152,7 +146,7 @@ impl Ray {
             .into_iter()
             .filter(|x| *x > 0.0)
             .min_by(f32::total_cmp)?;
-        let point = self.point(t as f32);
+        let point = self.point(t);
         if point.z < 0.0 || point.z > cylinder.height {
             return None;
         }

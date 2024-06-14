@@ -1,7 +1,8 @@
-use wgpu::{include_wgsl, Color};
+use wgpu::include_wgsl;
 
 use super::resources::VertexAttributeLayout;
 
+#[derive(Debug, Clone, Copy)]
 pub struct RenderPipelineWire;
 
 impl<'a> RenderPipelineWire {
@@ -12,6 +13,7 @@ impl<'a> RenderPipelineWire {
     }
 }
 
+#[derive(Debug)]
 pub struct RenderPipelineBuilder<'a> {
     shader: wgpu::ShaderModuleDescriptor<'a>,
     depth_texture_format: Option<wgpu::TextureFormat>,
@@ -25,16 +27,16 @@ impl<'a> RenderPipelineBuilder<'a> {
     pub fn new(shader: wgpu::ShaderModuleDescriptor<'a>) -> Self {
         Self {
             shader,
-            depth_texture_format: Default::default(),
-            bind_group_layouts: Default::default(),
-            fragment_entry: Default::default(),
-            polygon_mode: Default::default(),
-            cull_mode: Default::default(),
+            depth_texture_format: Option::default(),
+            bind_group_layouts: Vec::default(),
+            fragment_entry: Option::default(),
+            polygon_mode: Option::default(),
+            cull_mode: Option::default(),
         }
     }
     pub fn add_bind_group(mut self, bind_group_layout: &'a wgpu::BindGroupLayout) -> Self {
         self.bind_group_layouts.push(bind_group_layout);
-        Self { ..self }
+        self
     }
     pub fn depth(self, depth_format: wgpu::TextureFormat) -> Self {
         Self {
@@ -42,7 +44,7 @@ impl<'a> RenderPipelineBuilder<'a> {
             ..self
         }
     }
-    pub fn fragment_entry(self, fragment_entry: &'a str) -> RenderPipelineBuilder<'a> {
+    pub fn fragment_entry(self, fragment_entry: &'a str) -> Self {
         Self {
             fragment_entry: Some(fragment_entry),
             ..self
@@ -87,7 +89,7 @@ impl<'a> RenderPipelineBuilder<'a> {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: self.cull_mode,
-                polygon_mode: self.polygon_mode.map_or(Default::default(), |m| m),
+                polygon_mode: self.polygon_mode.map_or_else(Default::default, |m| m),
                 ..Default::default()
             },
             depth_stencil: self.depth_texture_format.map(|depth_texture_format| {
@@ -130,7 +132,7 @@ impl<'a> RenderPipelineBuilder<'a> {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RenderPassBuilder<'a> {
     clear_color: Option<wgpu::Color>,
     depth: Option<&'a wgpu::TextureView>,
@@ -138,15 +140,15 @@ pub struct RenderPassBuilder<'a> {
 
 impl<'a> RenderPassBuilder<'a> {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
-    pub fn depth(self, depth: &'a wgpu::TextureView) -> Self {
+    pub const fn depth(self, depth: &'a wgpu::TextureView) -> Self {
         Self {
             depth: Some(depth),
             ..self
         }
     }
-    pub fn clear_color(self, clear_color: wgpu::Color) -> Self {
+    pub const fn clear_color(self, clear_color: wgpu::Color) -> Self {
         Self {
             clear_color: Some(clear_color),
             ..self
@@ -163,7 +165,7 @@ impl<'a> RenderPassBuilder<'a> {
                 view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(self.clear_color.unwrap_or(Color::BLACK)),
+                    load: wgpu::LoadOp::Clear(self.clear_color.unwrap_or(wgpu::Color::BLACK)),
                     store: wgpu::StoreOp::Store,
                 },
             })],

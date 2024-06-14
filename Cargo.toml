@@ -4,19 +4,61 @@ name = "iris-engine" # the name of the package
 version = "0.1.0"    # the current version, obeying semver
 edition = '2021'
 
-[workspace.lints.rust]
+[lints.rust]
+# missing_docs = "warn"
 missing_copy_implementations = "warn"
 missing_debug_implementations = "warn"
+explicit-outlives-requirements = "warn"
+keyword-idents-2018 = "warn"
+keyword-idents-2024 = "warn"
+let-underscore-drop = "warn"
+non-ascii-idents = "warn"
+redundant-lifetimes = "warn"
+single-use-lifetimes = "warn"
+trivial-casts = "warn"
+trivial-numeric-casts = "warn"
+unit-bindings = "warn"
+unnameable-types = "warn"
+unreachable-pub = "warn"
+unsafe-op-in-unsafe-fn = "warn"
+unused-import-braces = "warn"
+unused-qualifications = "warn"
+variant-size-differences = "warn"
 
-[workspace.lints.clippy]
-suspicious = "warn"
-complexity = "warn"
-perf = "warn"
-style = "warn"
-pedantic = "warn"
-nursery = "warn"
+[lints.clippy]
+# expect_used = "warn"
+# unwrap_used = "warn"
+# panic = "warn"
+# missing_docs_in_private_items = "warn"
+# mod_module_files = "warn"
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
-
+cargo_common_metadata = "allow"
+multiple_crate_versions = "allow"
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+missing_panics_doc = "allow"
+dbg_macro = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+format_push_string = "warn"
+if_then_some_else_none = "warn"
+infinite_loop = "warn"
+large_include_file = "warn"
+lossy_float_literal = "warn"
+missing_assert_message = "warn"
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+multiple_inherent_impl = "warn"
+mutex_atomic = "warn"
 [dependencies]
 glam = { version = "0.28.0", features = ["approx", "glam-assert", "bytemuck"] }
 proptest = "1.4.0"

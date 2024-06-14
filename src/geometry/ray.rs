@@ -8,7 +8,6 @@ pub struct Ray {
 }
 
 impl Ray {
-    #[must_use]
     pub fn new(start: Vec3, direction: Vec3) -> Self {
         Self {
             start,
@@ -16,36 +15,32 @@ impl Ray {
         }
     }
 
-    #[must_use]
     pub fn point(&self, t: f32) -> Vec3 {
         self.start + t * self.direction
     }
 
-    #[must_use]
     pub fn distance_to_point(&self, point: Vec3) -> f32 {
         let delta = point - self.start;
 
         delta.reject_from(self.direction).length()
     }
 
-    #[must_use]
     pub fn closest_point_to(&self, point: Vec3) -> Vec3 {
         let t = self.closest_t_to(point);
         self.point(t)
     }
-    #[must_use]
+
     pub fn closest_t_to(&self, point: Vec3) -> f32 {
         (point - self.start).dot(self.direction) / self.direction.length_squared()
     }
 
-    #[must_use]
     pub fn distance_to_line(&self, other: Self) -> f32 {
         let (t1, t2) = self.closest_ts(other);
         let point1 = self.point(t1);
         let point2 = other.point(t2);
         point1.distance(point2)
     }
-    #[must_use]
+
     fn closest_ts(&self, other: Self) -> (f32, f32) {
         let v1_sqr = self.direction.length_squared();
         let v2_sqr = other.direction.length_squared();

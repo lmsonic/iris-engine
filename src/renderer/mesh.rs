@@ -31,8 +31,13 @@ impl VertexAttributeLayout for Vertex {
 }
 
 impl Vertex {
-    #[must_use]
-    pub fn new(position: Vec3, normal: Vec3, uv: Vec2, tangent: Vec3, bitangent: Vec3) -> Self {
+    pub const fn new(
+        position: Vec3,
+        normal: Vec3,
+        uv: Vec2,
+        tangent: Vec3,
+        bitangent: Vec3,
+    ) -> Self {
         Self {
             position,
             normal,
@@ -109,12 +114,12 @@ impl Mesh {
             v.normal = v.normal.normalize_or_zero();
         }
     }
-    #[must_use]
+
     pub fn vertices(&self) -> Vec<Vertex> {
         // TODO: put the vertex buffer in the mesh directly
         self.vertices.clone()
     }
-    #[must_use]
+
     pub fn indices(&self) -> Vec<u32> {
         // TODO: put the index buffer in the mesh directly
         self.indices.clone()

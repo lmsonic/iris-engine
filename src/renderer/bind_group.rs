@@ -1,10 +1,12 @@
 use super::texture::Texture;
 
+#[derive(Debug)]
 pub struct BindGroup {
     pub layout: wgpu::BindGroupLayout,
     pub bind_group: wgpu::BindGroup,
 }
 
+#[derive(Debug)]
 pub struct BindGroupBuilder<'a> {
     counter: u32,
     layout_entries: Vec<wgpu::BindGroupLayoutEntry>,
@@ -67,7 +69,7 @@ impl<'a> BindGroupBuilder<'a> {
         self
     }
 
-    pub fn texture(mut self, texture: &'a Texture) -> BindGroupBuilder<'a> {
+    pub fn texture(mut self, texture: &'a Texture) -> Self {
         self.layout_entries.extend([
             wgpu::BindGroupLayoutEntry {
                 binding: self.counter,
@@ -120,7 +122,7 @@ impl<'a> BindGroupBuilder<'a> {
     }
 }
 
-impl<'a> Default for BindGroupBuilder<'a> {
+impl Default for BindGroupBuilder<'_> {
     fn default() -> Self {
         Self::new()
     }

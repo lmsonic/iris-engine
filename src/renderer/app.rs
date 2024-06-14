@@ -1,7 +1,6 @@
 use std::{result::Result, sync::Arc, time::Instant};
 
 use egui_wgpu::ScreenDescriptor;
-use wgpu::Surface;
 use winit::{
     dpi::PhysicalSize,
     error::EventLoopError,
@@ -16,17 +15,14 @@ use super::gui::EguiRenderer;
 pub trait App: 'static + Sized {
     const SRGB: bool = true;
 
-    #[must_use]
     fn optional_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
-    #[must_use]
     fn required_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
-    #[must_use]
     fn required_downlevel_capabilities() -> wgpu::DownlevelCapabilities {
         wgpu::DownlevelCapabilities {
             flags: wgpu::DownlevelFlags::empty(),
@@ -34,7 +30,6 @@ pub trait App: 'static + Sized {
         }
     }
 
-    #[must_use]
     fn required_limits() -> wgpu::Limits {
         wgpu::Limits::downlevel_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }
@@ -63,26 +58,27 @@ pub trait App: 'static + Sized {
 /// Wrapper type which manages the surface and surface configuration.
 ///
 /// As surface usage varies per platform, wrapping this up cleans up the event loop code.
-struct SurfaceWrapper {
-    surface: Option<wgpu::Surface<'static>>,
-    config: Option<wgpu::SurfaceConfiguration>,
+#[derive(Debug)]
+pub struct SurfaceWrapper {
+    pub surface: wgpu::Surface<'static>,
+    pub config: wgpu::SurfaceConfiguration,
 }
 
 impl SurfaceWrapper {
-    /// Create a new surface wrapper with no surface or configuration.
-    const fn new() -> Self {
-        Self {
-            surface: None,
-            config: None,
-        }
-    }
+    // /// Create a new surface wrapper with no surface or configuration.
+    // const fn new() -> Self {
+    //     Self {
+    //         surface: None,
+    //         config: None,
+    //     }
+    // }
 
     /// Called when an event which matches [`Self::start_condition`] is received.
     ///
     /// On all native platforms, this is where we create the surface.
     ///
     /// Additionally, we configure the surface based on the (now valid) window size.
-    fn resume(&mut self, context: &AppContext, window: Arc<Window>, srgb: bool) {
+    fn new(context: &AppContext, window: Arc<Window>, srgb: bool) -> Self {
         // Window size is only actually valid after we enter the event loop.
         let window_size = window.inner_size();
         let width = window_size.width.max(1);
@@ -91,10 +87,7 @@ impl SurfaceWrapper {
         tracing::info!("Surface resume {window_size:?}");
 
         // We didn't create the surface in pre_adapter, so we need to do so now.
-        self.surface = Some(context.instance.create_surface(window).unwrap());
-
-        // From here on, self.surface should be Some.
-        let surface = self.surface.as_ref().unwrap();
+        let surface = context.instance.create_surface(window).unwrap();
 
         // Get the default configuration,
         let mut config = surface
@@ -112,28 +105,25 @@ impl SurfaceWrapper {
         };
 
         surface.configure(&context.device, &config);
-        self.config = Some(config);
+        let config = config;
+        Self { surface, config }
     }
 
     /// Resize the surface, making sure to not resize to zero.
     fn resize(&mut self, context: &AppContext, size: PhysicalSize<u32>) {
         tracing::info!("Surface resize {size:?}");
 
-        let config = self.config.as_mut().unwrap();
-        config.width = size.width.max(1);
-        config.height = size.height.max(1);
-        let surface = self.surface.as_ref().unwrap();
-        surface.configure(&context.device, config);
+        self.config.width = size.width.max(1);
+        self.config.height = size.height.max(1);
+        self.surface.configure(&context.device, &self.config);
     }
 
     /// Acquire the next surface texture.
     fn acquire(&mut self, context: &AppContext) -> wgpu::SurfaceTexture {
-        let surface = self.surface.as_ref().unwrap();
-
-        match surface.get_current_texture() {
+        match self.surface.get_current_texture() {
             Ok(frame) => frame,
             // If we timed out, just try again
-            Err(wgpu::SurfaceError::Timeout) => surface
+            Err(wgpu::SurfaceError::Timeout) => self.surface
                 .get_current_texture()
                 .expect("Failed to acquire next surface texture!"),
             Err(
@@ -143,33 +133,17 @@ impl SurfaceWrapper {
                 // If OutOfMemory happens, reconfiguring may not help, but we might as well try
                 | wgpu::SurfaceError::OutOfMemory,
             ) => {
-                surface.configure(&context.device, self.config());
-                surface
+                self.surface.configure(&context.device, &self.config);
+                self.surface
                     .get_current_texture()
                     .expect("Failed to acquire next surface texture!")
             }
         }
     }
-
-    /// On suspend on android, we drop the surface, as it's no longer valid.
-    ///
-    /// A suspend event is always followed by at least one resume event.
-    // fn suspend(&mut self) {
-    //     if cfg!(target_os = "android") {
-    //         self.surface = None;
-    //     }
-    // }
-
-    const fn get(&self) -> Option<&Surface> {
-        self.surface.as_ref()
-    }
-
-    fn config(&self) -> &wgpu::SurfaceConfiguration {
-        self.config.as_ref().unwrap()
-    }
 }
 
 /// Context containing global wgpu resources.
+#[derive(Debug)]
 pub struct AppContext {
     pub instance: wgpu::Instance,
     pub adapter: wgpu::Adapter,
@@ -178,7 +152,7 @@ pub struct AppContext {
 }
 impl AppContext {
     /// Initializes the example context.
-    async fn init_async<A: App>(surface: &SurfaceWrapper) -> Self {
+    async fn init_async<A: App>() -> Self {
         tracing::info!("Initializing wgpu...");
 
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
@@ -192,7 +166,7 @@ impl AppContext {
             gles_minor_version,
         });
 
-        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, surface.get())
+        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
             .await
             .expect("No suitable GPU adapters found on the system!");
 
@@ -292,10 +266,10 @@ struct AppHandler<A: App> {
 impl<A: App> AppHandler<A> {
     fn new(context: AppContext, surface: SurfaceWrapper, window: Arc<Window>) -> Self {
         let egui_renderer =
-            EguiRenderer::new(&context.device, surface.config().format, None, 1, &window);
+            EguiRenderer::new(&context.device, surface.config.format, None, 1, &window);
         Self {
             app: A::init(
-                surface.config(),
+                &surface.config,
                 &context.adapter,
                 &context.device,
                 &context.queue,
@@ -353,7 +327,7 @@ impl<A: App> AppHandler<A> {
                     WindowEvent::Resized(size) => {
                         self.surface.resize(&self.context, size);
                         self.app.resize(
-                            self.surface.config(),
+                            &self.surface.config,
                             &self.context.device,
                             &self.context.queue,
                         );
@@ -377,7 +351,7 @@ impl<A: App> AppHandler<A> {
 
                         let frame = self.surface.acquire(&self.context);
                         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-                            format: Some(self.surface.config().view_formats[0]),
+                            format: Some(self.surface.config.view_formats[0]),
                             ..wgpu::TextureViewDescriptor::default()
                         });
 
@@ -388,10 +362,7 @@ impl<A: App> AppHandler<A> {
                             &wgpu::CommandEncoderDescriptor { label: None },
                         );
                         let screen_descriptor = ScreenDescriptor {
-                            size_in_pixels: [
-                                self.surface.config().width,
-                                self.surface.config().height,
-                            ],
+                            size_in_pixels: [self.surface.config.width, self.surface.config.height],
                             pixels_per_point: self.window.scale_factor() as f32 * self.scale_factor,
                         };
 
@@ -401,7 +372,7 @@ impl<A: App> AppHandler<A> {
                             &mut encoder,
                             &self.window,
                             &view,
-                            screen_descriptor,
+                            &screen_descriptor,
                             |ctx| self.app.gui(ctx, &self.context.queue),
                         );
                         self.context.queue.submit(Some(encoder.finish()));
@@ -411,7 +382,7 @@ impl<A: App> AppHandler<A> {
                     }
                     _ => {
                         if !response.consumed {
-                            self.app.input(event, &self.context.queue)
+                            self.app.input(event, &self.context.queue);
                         };
                     }
                 }
@@ -427,9 +398,8 @@ async fn start<A: App>() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
     event_loop.set_control_flow(ControlFlow::Poll);
-    let mut surface = SurfaceWrapper::new();
-    let context = AppContext::init_async::<A>(&surface).await;
-    surface.resume(&context, window.clone(), A::SRGB);
+    let context = AppContext::init_async::<A>().await;
+    let surface = SurfaceWrapper::new(&context, window.clone(), A::SRGB);
     let mut handler = AppHandler::<A>::new(context, surface, window);
     tracing::info!("Entering event loop...");
     event_loop.run(move |event, elwt| {

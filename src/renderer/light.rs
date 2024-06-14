@@ -54,12 +54,12 @@ impl Light {
     pub fn gui(&mut self, ui: &mut Ui) -> bool {
         let mut changed = false;
         match self {
-            Light::DirectionalLight(ref mut light) => {
+            Self::DirectionalLight(ref mut light) => {
                 ui.label("Directional Light");
                 changed |= color_edit(ui, &mut light.color, "Color");
                 changed |= direction_edit(ui, &mut light.direction, "Direction");
             }
-            Light::PointLight(ref mut light) => {
+            Self::PointLight(ref mut light) => {
                 ui.label("Point Light");
                 changed |= color_edit(ui, &mut light.color, "Color");
                 changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
@@ -71,7 +71,7 @@ impl Light {
                     0.0..=5.0,
                 );
             }
-            Light::SpotLight(ref mut light) => {
+            Self::SpotLight(ref mut light) => {
                 ui.label("Spot Light");
                 changed |= color_edit(ui, &mut light.color, "Color");
                 changed |= direction_edit(ui, &mut light.direction, "Direction");
@@ -104,7 +104,6 @@ impl Default for DirectionalLight {
 }
 
 impl DirectionalLight {
-    #[must_use]
     pub fn new(color: Color, direction: Vec3) -> Self {
         Self {
             color: color.into(),
@@ -118,7 +117,7 @@ impl GpuSendable<GpuLight> for DirectionalLight {
         GpuLight {
             position: -self.direction.extend(0.0),
             color_range: self.color.extend(0.0),
-            custom_data: Default::default(),
+            custom_data: Vec4::default(),
         }
     }
 }
@@ -142,7 +141,6 @@ impl Default for PointLight {
 }
 
 impl PointLight {
-    #[must_use]
     pub fn new(color: Color, position: Vec3, range: f32, attenuation: [f32; 3]) -> Self {
         Self {
             position,
@@ -191,7 +189,6 @@ impl Default for SpotLight {
 }
 
 impl SpotLight {
-    #[must_use]
     pub fn new(
         color: Color,
         position: Vec3,
@@ -208,7 +205,6 @@ impl SpotLight {
         }
     }
 
-    #[must_use]
     pub fn project_texture_matrix(&self, width: usize, height: usize) -> Mat4 {
         let z_axis = self.direction;
         // Assume texture uses up as T direction

@@ -1,21 +1,22 @@
-use std::f32::consts::PI;
-use std::ops::RangeInclusive;
-
-use egui::*;
+use egui::{Context, DragValue, Response, Slider, Ui, Vec2};
 use egui_wgpu::{Renderer, ScreenDescriptor};
 use egui_winit::State;
 use glam::Vec3;
+use std::f32::consts::PI;
+use std::ops::RangeInclusive;
 use wgpu::{CommandEncoder, Device, Queue, StoreOp, TextureFormat, TextureView};
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 use super::color::Color;
 
+#[allow(missing_debug_implementations)]
 pub struct EguiRenderer {
     state: State,
     renderer: Renderer,
 }
 
+#[allow(clippy::float_cmp)]
 pub fn drag_angle_clamp(ui: &mut Ui, radians: &mut f32, range: RangeInclusive<f32>) -> Response {
     let mut degrees = radians.to_degrees();
     let mut response = ui.add(
@@ -129,10 +130,10 @@ impl EguiRenderer {
         output_depth_format: Option<TextureFormat>,
         msaa_samples: u32,
         window: &Window,
-    ) -> EguiRenderer {
+    ) -> Self {
         let egui_context = Context::default();
 
-        let egui_state = egui_winit::State::new(
+        let egui_state = State::new(
             egui_context,
             egui::viewport::ViewportId::ROOT,
             &window,
@@ -146,7 +147,7 @@ impl EguiRenderer {
             msaa_samples,
         );
 
-        EguiRenderer {
+        Self {
             state: egui_state,
             renderer: egui_renderer,
         }
@@ -172,7 +173,7 @@ impl EguiRenderer {
         encoder: &mut CommandEncoder,
         window: &Window,
         window_surface_view: &TextureView,
-        screen_descriptor: ScreenDescriptor,
+        screen_descriptor: &ScreenDescriptor,
         run_ui: impl FnOnce(&Context),
     ) {
         self.state
@@ -196,7 +197,7 @@ impl EguiRenderer {
                 .update_texture(device, queue, *id, image_delta);
         }
         self.renderer
-            .update_buffers(device, queue, encoder, &tris, &screen_descriptor);
+            .update_buffers(device, queue, encoder, &tris, screen_descriptor);
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: window_surface_view,
@@ -211,10 +212,10 @@ impl EguiRenderer {
             label: Some("egui main render pass"),
             occlusion_query_set: None,
         });
-        self.renderer.render(&mut rpass, &tris, &screen_descriptor);
+        self.renderer.render(&mut rpass, &tris, screen_descriptor);
         drop(rpass);
         for x in &full_output.textures_delta.free {
-            self.renderer.free_texture(x)
+            self.renderer.free_texture(x);
         }
     }
 }

@@ -6,6 +6,7 @@ use super::{compute, resources::load_texture};
 
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
@@ -64,7 +65,7 @@ impl Texture {
         }
     }
     pub fn cubemap(
-        paths: [impl AsRef<Path>; 6],
+        paths: &[impl AsRef<Path>; 6],
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Self {
