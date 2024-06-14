@@ -1,12 +1,12 @@
 use glam::Vec3;
 use iris_engine::renderer::{
     bind_group::{BindGroup, BindGroupBuilder},
-    buffer::{IndexBuffer, StorageBufferVec, UniformBuffer, VertexBuffer},
+    buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
     camera::OrbitCamera,
     color::Color,
     gui::{color_edit, lights_gui},
     light::{Light, PointLight},
-    material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
+    material::{MaterialPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
     texture::Texture,
@@ -20,7 +20,7 @@ struct Example {
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: PbrMaterial,
-    light_storage: StorageBufferVec<Light>,
+    light_storage: StorageBufferArray<Light>,
     clear_color: Color,
 }
 
@@ -60,7 +60,7 @@ impl iris_engine::renderer::app::App for Example {
             ..Default::default()
         };
 
-        let light_storage = StorageBufferVec::new(&[point_light.into()], device, queue, 16);
+        let light_storage = StorageBufferArray::new(&[point_light.into()], device, queue, 16);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
@@ -72,7 +72,7 @@ impl iris_engine::renderer::app::App for Example {
             .diffuse_texture(texture)
             .normal_texture(normal)
             .build(device, queue);
-        let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
             .build::<Vertex>(device, config.format);
 
         let pipeline_wire = device

@@ -348,9 +348,9 @@ impl<'a> Material<'a> for LitMaterial {
     }
 }
 #[derive(Debug, Clone, Copy)]
-pub struct MeshPipelineBuilder;
+pub struct MaterialPipelineBuilder;
 
-impl MeshPipelineBuilder {
+impl MaterialPipelineBuilder {
     #[allow(clippy::new_ret_no_self)]
     pub fn new<'a, M: Material<'a>>(
         material: &'a M,

@@ -71,12 +71,12 @@ impl<T> UniformBuffer<T> {
     }
 }
 #[derive(Debug)]
-pub struct UniformBufferVec<T> {
+pub struct UniformBufferArray<T> {
     pub data: Vec<T>,
     pub buffer: wgpu::Buffer,
 }
 
-impl<T> UniformBufferVec<T> {
+impl<T> UniformBufferArray<T> {
     pub fn new<U>(data: &[T], device: &wgpu::Device) -> Self
     where
         U: Clone + Copy + Pod + Zeroable,
@@ -100,6 +100,20 @@ impl<T> UniformBufferVec<T> {
     {
         let gpu_data: Vec<U> = self.data.iter().map(GpuSendable::to_gpu).collect();
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&gpu_data));
+    }
+    pub fn update_at<U>(&self, index: usize, queue: &wgpu::Queue)
+    where
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
+    {
+        assert!(index < self.data.len(), "Updated buffer at index > length");
+
+        let gpu_data = self.data[index].to_gpu();
+        queue.write_buffer(
+            &self.buffer,
+            index as u64,
+            bytemuck::cast_slice(&[gpu_data]),
+        );
     }
 }
 
@@ -133,12 +147,12 @@ impl<T> StorageBuffer<T> {
 }
 
 #[derive(Debug)]
-pub struct StorageBufferVec<T> {
+pub struct StorageBufferArray<T> {
     pub data: Vec<T>,
     pub buffer: wgpu::Buffer,
 }
 
-impl<T> StorageBufferVec<T> {
+impl<T> StorageBufferArray<T> {
     pub fn new<U>(data: &[T], device: &wgpu::Device, queue: &wgpu::Queue, size: u64) -> Self
     where
         U: Clone + Copy + Pod + Zeroable + Debug,
@@ -168,6 +182,20 @@ impl<T> StorageBufferVec<T> {
             let gpu_data: Vec<U> = self.data.iter().map(GpuSendable::to_gpu).collect();
             queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&gpu_data));
         }
+    }
+    pub fn update_at<U>(&self, index: usize, queue: &wgpu::Queue)
+    where
+        U: Clone + Copy + Pod + Zeroable,
+        T: GpuSendable<U>,
+    {
+        assert!(index < self.data.len(), "Updated buffer at index > length");
+
+        let gpu_data = self.data[index].to_gpu();
+        queue.write_buffer(
+            &self.buffer,
+            index as u64,
+            bytemuck::cast_slice(&[gpu_data]),
+        );
     }
 }
 #[derive(Debug)]

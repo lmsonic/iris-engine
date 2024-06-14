@@ -38,6 +38,7 @@ impl<'a> RenderPipelineBuilder<'a> {
         self.bind_group_layouts.push(bind_group_layout);
         self
     }
+
     pub fn depth(self, depth_format: wgpu::TextureFormat) -> Self {
         Self {
             depth_texture_format: Some(depth_format),

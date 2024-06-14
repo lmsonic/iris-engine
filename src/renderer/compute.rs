@@ -74,22 +74,11 @@ pub fn generate_mipmaps(
         }));
     }
 
-    let compute_shader =
-        device.create_shader_module(wgpu::include_wgsl!("shaders/mipmap_generation.wgsl"));
+    let shader = wgpu::include_wgsl!("shaders/mipmap_generation.wgsl");
 
-    let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: Some("Compute Pipeline Layout"),
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
-
-    let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: Some("Compute Pipeline"),
-        layout: Some(&compute_pipeline_layout),
-        module: &compute_shader,
-        entry_point: "compute_mip_map",
-        // compilation_options: Default::default(),
-    });
+    let compute_pipeline = ComputePipelineBuilder::new(shader)
+        .add_bind_group(&bind_group_layout)
+        .build(device, "compute_mip_map");
 
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
@@ -132,4 +121,40 @@ pub fn generate_mipmaps(
     //         level,
     //     );
     // }
+}
+
+#[derive(Debug)]
+pub struct ComputePipelineBuilder<'a> {
+    shader: wgpu::ShaderModuleDescriptor<'a>,
+    bind_group_layouts: Vec<&'a wgpu::BindGroupLayout>,
+}
+
+impl<'a> ComputePipelineBuilder<'a> {
+    pub fn new(shader: wgpu::ShaderModuleDescriptor<'a>) -> Self {
+        Self {
+            shader,
+            bind_group_layouts: vec![],
+        }
+    }
+
+    pub fn add_bind_group(mut self, bind_group_layout: &'a wgpu::BindGroupLayout) -> Self {
+        self.bind_group_layouts.push(bind_group_layout);
+        self
+    }
+
+    pub fn build(self, device: &'a wgpu::Device, entry_point: &str) -> wgpu::ComputePipeline {
+        let module = device.create_shader_module(self.shader);
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Compute Pipeline Layout"),
+            bind_group_layouts: &self.bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+        device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Compute Pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &module,
+            entry_point,
+        })
+    }
 }

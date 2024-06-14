@@ -7,7 +7,7 @@ use iris_engine::{
         camera::OrbitCamera,
         color::Color,
         gui::color_edit,
-        material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
+        material::{MaterialPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
@@ -66,7 +66,7 @@ impl iris_engine::renderer::app::App for Example {
             .diffuse_texture(texture)
             .build(device, queue);
         let depth = Texture::depth(device, config.width, config.height);
-        let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
             .depth(depth.texture.format())
             .build::<Vertex>(device, config.format);
 

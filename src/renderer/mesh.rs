@@ -116,12 +116,10 @@ impl Mesh {
     }
 
     pub fn vertices(&self) -> Vec<Vertex> {
-        // TODO: put the vertex buffer in the mesh directly
         self.vertices.clone()
     }
 
     pub fn indices(&self) -> Vec<u32> {
-        // TODO: put the index buffer in the mesh directly
         self.indices.clone()
     }
 }

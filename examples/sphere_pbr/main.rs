@@ -3,12 +3,12 @@ use iris_engine::{
     geometry::shapes::Sphere,
     renderer::{
         bind_group::{BindGroup, BindGroupBuilder},
-        buffer::{IndexBuffer, StorageBufferVec, UniformBuffer, VertexBuffer},
+        buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
         gui::{color_edit, lights_gui},
         light::{DirectionalLight, Light},
-        material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
+        material::{MaterialPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
@@ -24,7 +24,7 @@ struct Example {
     pipeline_wire: Option<wgpu::RenderPipeline>,
     material: PbrMaterial,
     depth_texture: Texture,
-    light_storage: StorageBufferVec<Light>,
+    light_storage: StorageBufferArray<Light>,
 
     clear_color: Color,
 }
@@ -62,7 +62,7 @@ impl iris_engine::renderer::app::App for Example {
 
         let directional_light = DirectionalLight::new(Color::WHITE, Vec3::NEG_ONE);
 
-        let light_storage = StorageBufferVec::new(&[directional_light.into()], device, queue, 16);
+        let light_storage = StorageBufferArray::new(&[directional_light.into()], device, queue, 16);
 
         let bind_group = BindGroupBuilder::new()
             .uniform(&camera_uniform.buffer)
@@ -76,7 +76,7 @@ impl iris_engine::renderer::app::App for Example {
             .build(device, queue);
         let depth_texture = Texture::depth(device, config.width, config.height);
 
-        let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
             .depth(depth_texture.texture.format())
             .build::<Vertex>(device, config.format);
 

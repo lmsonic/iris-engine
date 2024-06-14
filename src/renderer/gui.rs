@@ -11,10 +11,8 @@ use winit::window::Window;
 use super::color::Color;
 use super::light::{DirectionalLight, Light, PointLight, SpotLight};
 
-#[allow(missing_debug_implementations)]
-pub struct EguiRenderer {
-    state: State,
-    renderer: Renderer,
+pub trait GuiViewable {
+    fn gui(&mut self, ui: &mut Ui, queue: &Queue);
 }
 
 pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
@@ -150,12 +148,19 @@ fn polar_to_cartesian(polar: Vec2) -> Vec3 {
     }
 }
 
+#[allow(missing_debug_implementations)]
+pub struct EguiRenderer {
+    state: State,
+    renderer: Renderer,
+}
+
 impl EguiRenderer {
-    pub fn context(&self) -> &Context {
+    #[allow(dead_code)]
+    pub(crate) fn context(&self) -> &Context {
         self.state.egui_ctx()
     }
 
-    pub fn new(
+    pub(crate) fn new(
         device: &Device,
         output_color_format: TextureFormat,
         output_depth_format: Option<TextureFormat>,
@@ -184,20 +189,20 @@ impl EguiRenderer {
         }
     }
 
-    pub fn handle_input(
+    pub(crate) fn handle_input(
         &mut self,
         window: &Window,
         event: &WindowEvent,
     ) -> egui_winit::EventResponse {
         self.state.on_window_event(window, event)
     }
-
-    pub fn ppp(&mut self, v: f32) {
+    #[allow(dead_code)]
+    pub(crate) fn ppp(&mut self, v: f32) {
         self.state.egui_ctx().set_pixels_per_point(v);
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw(
+    pub(crate) fn draw(
         &mut self,
         device: &Device,
         queue: &Queue,

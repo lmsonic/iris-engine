@@ -7,7 +7,7 @@ use iris_engine::{
         camera::OrbitCamera,
         color::Color,
         gui::color_edit,
-        material::{MeshPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
+        material::{MaterialPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
     },
@@ -57,7 +57,7 @@ impl iris_engine::renderer::app::App for Example {
             .build(device);
 
         let material = UnlitMaterialBuilder::new().build(device, queue);
-        let pipeline = MeshPipelineBuilder::new(&material, &bind_group.layout)
+        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
             .cull_mode(None)
             .build::<Vertex>(device, config.format);
 

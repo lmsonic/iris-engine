@@ -64,6 +64,7 @@ impl Texture {
             sampler,
         }
     }
+
     pub fn cubemap(
         paths: &[impl AsRef<Path>; 6],
         device: &wgpu::Device,
