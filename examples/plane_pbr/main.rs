@@ -4,8 +4,8 @@ use iris_engine::renderer::{
     buffer::{IndexBuffer, StorageBufferVec, UniformBuffer, VertexBuffer},
     camera::OrbitCamera,
     color::Color,
-    gui::color_edit,
-    light::{DirectionalLight, Light, PointLight, SpotLight},
+    gui::{color_edit, lights_gui},
+    light::{Light, PointLight},
     material::{MeshPipelineBuilder, PbrMaterial, PbrMaterialBuilder},
     mesh::{Mesh, Vertex},
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
@@ -32,35 +32,7 @@ impl iris_engine::renderer::app::App for Example {
             .default_open(false)
             .show(ctx, |ui| {
                 self.material.gui(ui, queue);
-                let mut changed = false;
-                let mut indices = vec![];
-                for (i, gpu_light) in &mut self.light_storage.data.iter_mut().enumerate() {
-                    changed |= gpu_light.gui(ui);
-                    if ui.button("Remove Light").clicked() {
-                        changed = true;
-                        indices.push(i);
-                    }
-                }
-                for i in indices.iter().rev() {
-                    // Remove in reverse order
-                    self.light_storage.data.remove(*i);
-                }
-                if ui.button("Add Directional Light").clicked() {
-                    self.light_storage
-                        .data
-                        .push(DirectionalLight::default().into());
-                    changed = true;
-                }
-                if ui.button("Add Point Light").clicked() {
-                    self.light_storage.data.push(PointLight::default().into());
-                    changed = true;
-                }
-                if ui.button("Add Spot Light").clicked() {
-                    self.light_storage.data.push(SpotLight::default().into());
-                    changed = true;
-                }
-
-                if changed || !indices.is_empty() {
+                if lights_gui(ui, &mut self.light_storage.data) {
                     self.light_storage.update(queue);
                 }
 

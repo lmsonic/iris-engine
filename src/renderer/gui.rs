@@ -9,11 +9,42 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 use super::color::Color;
+use super::light::{DirectionalLight, Light, PointLight, SpotLight};
 
 #[allow(missing_debug_implementations)]
 pub struct EguiRenderer {
     state: State,
     renderer: Renderer,
+}
+
+pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
+    let mut changed = false;
+    let mut indices = vec![];
+    for (i, gpu_light) in lights.iter_mut().enumerate() {
+        changed |= gpu_light.gui(ui);
+        if ui.button("Remove Light").clicked() {
+            changed = true;
+            indices.push(i);
+        }
+    }
+    for i in indices.iter().rev() {
+        // Remove in reverse order
+        lights.remove(*i);
+    }
+    if ui.button("Add Directional Light").clicked() {
+        lights.push(DirectionalLight::default().into());
+        changed = true;
+    }
+    if ui.button("Add Point Light").clicked() {
+        lights.push(PointLight::default().into());
+        changed = true;
+    }
+    if ui.button("Add Spot Light").clicked() {
+        lights.push(SpotLight::default().into());
+        changed = true;
+    }
+
+    changed || !indices.is_empty()
 }
 
 #[allow(clippy::float_cmp)]
