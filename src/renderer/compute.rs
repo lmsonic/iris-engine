@@ -74,7 +74,8 @@ pub fn generate_mipmaps(
         }));
     }
 
-    let compute_shader = device.create_shader_module(wgpu::include_wgsl!("mipmap_generation.wgsl"));
+    let compute_shader =
+        device.create_shader_module(wgpu::include_wgsl!("shaders/mipmap_generation.wgsl"));
 
     let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("Compute Pipeline Layout"),

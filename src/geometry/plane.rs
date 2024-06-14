@@ -9,38 +9,6 @@ pub struct Plane {
     pub distance: f32,
 }
 
-impl AbsDiffEq for Plane {
-    type Epsilon = <Vec3 as AbsDiffEq>::Epsilon;
-
-    fn default_epsilon() -> Self::Epsilon {
-        Vec3::default_epsilon()
-    }
-
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.normal.abs_diff_eq(other.normal, epsilon)
-            && self.distance.abs_diff_eq(&other.distance, epsilon)
-    }
-}
-
-impl RelativeEq for Plane {
-    fn default_max_relative() -> Self::Epsilon {
-        Vec3::default_max_relative()
-    }
-
-    fn relative_eq(
-        &self,
-        other: &Self,
-        epsilon: Self::Epsilon,
-        max_relative: Self::Epsilon,
-    ) -> bool {
-        self.normal
-            .relative_eq(&other.normal, epsilon, max_relative)
-            && self
-                .distance
-                .relative_eq(&other.distance, epsilon, max_relative)
-    }
-}
-
 impl Plane {
     pub fn new(point: Vec3, normal: Vec3) -> Self {
         let normal = normal.normalize();
@@ -50,18 +18,8 @@ impl Plane {
         }
     }
 
-    pub fn from_vec4(value: Vec4) -> Self {
-        let normal = value.truncate();
-        let length = normal.length();
-        let normal = normal / length;
-        Self {
-            normal,
-            distance: value.w / length,
-        }
-    }
-
     pub fn homogeneous(&self) -> Vec4 {
-        self.normal.extend(self.distance)
+        Vec4::from(*self)
     }
 
     pub fn signed_distance_to_point(&self, point: Vec3) -> f32 {
@@ -95,6 +53,56 @@ impl Plane {
         };
         self.intersection_with_planes(other, line_plane)
             .map(|point| Ray::new(point, direction))
+    }
+}
+
+impl From<Vec4> for Plane {
+    fn from(value: Vec4) -> Self {
+        let normal = value.truncate();
+        let length = normal.length();
+        let normal = normal / length;
+        Self {
+            normal,
+            distance: value.w / length,
+        }
+    }
+}
+
+impl From<Plane> for Vec4 {
+    fn from(value: Plane) -> Self {
+        value.normal.extend(value.distance)
+    }
+}
+
+impl AbsDiffEq for Plane {
+    type Epsilon = <Vec3 as AbsDiffEq>::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        Vec3::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.normal.abs_diff_eq(other.normal, epsilon)
+            && self.distance.abs_diff_eq(&other.distance, epsilon)
+    }
+}
+
+impl RelativeEq for Plane {
+    fn default_max_relative() -> Self::Epsilon {
+        Vec3::default_max_relative()
+    }
+
+    fn relative_eq(
+        &self,
+        other: &Self,
+        epsilon: Self::Epsilon,
+        max_relative: Self::Epsilon,
+    ) -> bool {
+        self.normal
+            .relative_eq(&other.normal, epsilon, max_relative)
+            && self
+                .distance
+                .relative_eq(&other.distance, epsilon, max_relative)
     }
 }
 #[cfg(test)]

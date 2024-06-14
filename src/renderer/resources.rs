@@ -348,23 +348,3 @@ pub fn load_geometry(path: impl AsRef<Path> + Debug) -> Mesh {
 
     Mesh::new(vertices, indices)
 }
-
-#[cfg(test)]
-mod tests {
-    use image::DynamicImage;
-
-    use super::convert_height_to_normal_map;
-
-    #[test]
-    fn test_height_map_to_normal() {
-        let image = image::io::Reader::open("height_map.png")
-            .unwrap()
-            .decode()
-            .unwrap()
-            .grayscale()
-            .to_luma8();
-
-        let normal = DynamicImage::from(convert_height_to_normal_map(&image, 1.0));
-        normal.save("heightmap_normal.png").unwrap();
-    }
-}

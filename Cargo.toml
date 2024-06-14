@@ -30,7 +30,7 @@ variant-size-differences = "warn"
 # unwrap_used = "warn"
 # panic = "warn"
 # missing_docs_in_private_items = "warn"
-# mod_module_files = "warn"
+mod_module_files = "warn"
 suspicious = { level = "warn", priority = -1 }
 complexity = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }

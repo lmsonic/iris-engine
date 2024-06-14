@@ -8,7 +8,7 @@ pub struct RenderPipelineWire;
 impl<'a> RenderPipelineWire {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> RenderPipelineBuilder<'a> {
-        let shader = include_wgsl!("wire.wgsl");
+        let shader = include_wgsl!("shaders/wire.wgsl");
         RenderPipelineBuilder::new(shader).polygon_mode(wgpu::PolygonMode::Line)
     }
 }

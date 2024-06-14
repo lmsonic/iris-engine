@@ -326,7 +326,7 @@ impl<'a> Material<'a> for PbrMaterial {
     }
 
     fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("pbr.wgsl")
+        include_wgsl!("shaders/pbr.wgsl")
     }
 }
 
@@ -336,7 +336,7 @@ impl<'a> Material<'a> for UnlitMaterial {
     }
 
     fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("unlit.wgsl")
+        include_wgsl!("shaders/unlit.wgsl")
     }
 }
 impl<'a> Material<'a> for LitMaterial {
@@ -344,7 +344,7 @@ impl<'a> Material<'a> for LitMaterial {
         &self.bind_group
     }
     fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("lit.wgsl")
+        include_wgsl!("shaders/lit.wgsl")
     }
 }
 #[derive(Debug, Clone, Copy)]

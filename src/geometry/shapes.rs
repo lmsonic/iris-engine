@@ -22,7 +22,7 @@ impl Triangle {
         (self.v2 - self.v1).cross(self.v3 - self.v1)
     }
 
-    pub fn is_inside_triangle(&self, point: Vec3) -> bool {
+    pub(crate) fn is_inside_triangle(&self, point: Vec3) -> bool {
         // Calculate baricentric coordinates to check if it is inside the triangle
         let r = point - self.v1;
         let q1 = self.v2 - self.v1;
@@ -74,8 +74,8 @@ impl Cuboid {
     pub const fn new(size: Vec3) -> Self {
         Self { size }
     }
-
-    pub fn is_point_on_surface(&self, point: Vec3) -> bool {
+    #[allow(dead_code)]
+    pub(crate) fn is_point_on_surface(&self, point: Vec3) -> bool {
         abs_diff_eq!(point.x, 0.0, epsilon = 1e-2)
             || abs_diff_eq!(point.x, self.size.x, epsilon = 1e-2)
             || abs_diff_eq!(point.y, 0.0, epsilon = 1e-2)
@@ -163,15 +163,16 @@ impl Sphere {
     }
 
     // Point must be on surface
-    pub fn normal(&self, point: Vec3) -> Vec3 {
+    #[allow(dead_code)]
+    pub(crate) fn normal(self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
         Self::gradient(point)
     }
-
+    #[allow(dead_code)]
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         self.radius.mul_add(-self.radius, p.dot(p))
     }
-
+    #[allow(dead_code)]
     pub(crate) fn gradient(p: Vec3) -> Vec3 {
         2.0 * p * p
     }
@@ -290,17 +291,18 @@ impl Ellipsoid {
     pub const fn new(radius: Vec3) -> Self {
         Self { radius }
     }
-
+    #[allow(dead_code)]
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         (p * p).dot((self.radius * self.radius).recip()) - 1.0
     }
-
+    #[allow(dead_code)]
     pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
         2.0 * p * (self.radius * self.radius).recip()
     }
 
     // Assuming point is on surface
-    pub fn normal(&self, point: Vec3) -> Vec3 {
+    #[allow(dead_code)]
+    pub(crate) fn normal(&self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
         Self::gradient(self, point)
     }
@@ -321,13 +323,13 @@ impl Cylinder {
             height,
         }
     }
-
+    #[allow(dead_code)]
     pub(crate) fn equation(self, p: Vec3) -> f32 {
         let p_xy = p.xy();
         let radius_xy = Vec2::new(self.radius_x, self.radius_y);
         (p_xy * p_xy).dot((radius_xy * radius_xy).recip()) - 1.0
     }
-
+    #[allow(dead_code)]
     pub(crate) fn gradient(&self, p: Vec3) -> Vec3 {
         let p_xy = p.xy();
         let radius_xy = Vec2::new(self.radius_x, self.radius_y);
@@ -342,7 +344,8 @@ impl Cylinder {
     }
 
     // Assuming point is on surface
-    pub fn normal(&self, point: Vec3) -> Vec3 {
+    #[allow(dead_code)]
+    pub(crate) fn normal(&self, point: Vec3) -> Vec3 {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
         Self::gradient(self, point)
     }

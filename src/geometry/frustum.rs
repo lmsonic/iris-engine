@@ -1,4 +1,5 @@
 #![allow(clippy::module_name_repetitions)]
+
 use glam::{Mat4, Vec3, Vec4};
 
 use super::plane::Plane;
@@ -13,6 +14,60 @@ pub struct Frustum {
     pub top: Plane,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FrustumBuilder {
+    reversed_z: bool,
+    is_opengl: bool,
+    matrix: Mat4,
+}
+
+impl FrustumBuilder {
+    pub fn new(matrix: Mat4) -> Self {
+        Self {
+            matrix,
+            ..Default::default()
+        }
+    }
+    pub fn reversed_z(&mut self) -> &mut Self {
+        self.reversed_z = true;
+        self
+    }
+    pub fn opengl(&mut self) -> &mut Self {
+        self.is_opengl = true;
+        self
+    }
+
+    pub fn build(&mut self) -> Frustum {
+        let matrix = self.matrix;
+        let r1 = matrix.row(0);
+        let r2 = matrix.row(1);
+        let mut r3 = if self.is_opengl {
+            matrix.row(2)
+        } else {
+            2.0 * matrix.row(2) - matrix.row(3)
+        };
+        if self.reversed_z {
+            r3 = -r3;
+        }
+        let r4 = matrix.row(3);
+        let near = (r4 + r3).into();
+        let far = (r4 - r3).into();
+        let left = (r4 + r1).into();
+        let right = (r4 - r1).into();
+        let bottom = (r4 + r2).into();
+        let top = (r4 - r2).into();
+
+        Frustum {
+            near,
+            far,
+            left,
+            right,
+            bottom,
+            top,
+        }
+    }
+}
+
 impl Frustum {
     pub const fn new(
         near: Plane,
@@ -22,57 +77,6 @@ impl Frustum {
         bottom: Plane,
         top: Plane,
     ) -> Self {
-        Self {
-            near,
-            far,
-            left,
-            right,
-            bottom,
-            top,
-        }
-    }
-    // TODO: this probably needs builder pattern
-
-    pub fn from_matrix_gl(matrix: Mat4, reverse_z: bool) -> Self {
-        let r1 = matrix.row(0);
-        let r2 = matrix.row(1);
-        let mut r3 = matrix.row(2);
-        if reverse_z {
-            r3 = -r3;
-        }
-        let r4 = matrix.row(3);
-        let near = Plane::from_vec4(r4 + r3);
-        let far = Plane::from_vec4(r4 - r3);
-        let left = Plane::from_vec4(r4 + r1);
-        let right = Plane::from_vec4(r4 - r1);
-        let bottom = Plane::from_vec4(r4 + r2);
-        let top = Plane::from_vec4(r4 - r2);
-
-        Self {
-            near,
-            far,
-            left,
-            right,
-            bottom,
-            top,
-        }
-    }
-
-    pub fn from_matrix(matrix: Mat4, reverse_z: bool) -> Self {
-        let r1 = matrix.row(0);
-        let r2 = matrix.row(1);
-        let mut r3 = 2.0 * matrix.row(2) - matrix.row(3);
-        if reverse_z {
-            r3 = -r3;
-        }
-        let r4 = matrix.row(3);
-        let near = Plane::from_vec4(r4 + r3);
-        let far = Plane::from_vec4(r4 - r3);
-        let left = Plane::from_vec4(r4 + r1);
-        let right = Plane::from_vec4(r4 - r1);
-        let bottom = Plane::from_vec4(r4 + r2);
-        let top = Plane::from_vec4(r4 - r2);
-
         Self {
             near,
             far,
@@ -153,7 +157,6 @@ impl PerspectiveFrustum {
     pub fn focal_distance(&self) -> f32 {
         ((self.fov_y * 0.5).tan() * self.aspect_ratio).recip()
     }
-    // TODO: this probably needs builder pattern
 
     pub fn frustum(&self, is_left_handed: bool) -> Frustum {
         let focal_distance = self.focal_distance();
@@ -306,13 +309,10 @@ mod tests {
     use approx::assert_relative_eq;
     use glam::Vec4;
 
-    use crate::{
-        geometry::frustum::{clip_projection_matrix, PerspectiveFrustum},
-        geometry::plane::Plane,
-    };
+    use crate::geometry::frustum::{clip_projection_matrix, FrustumBuilder, PerspectiveFrustum};
     use proptest::prelude::*;
 
-    use super::{Frustum, OrthographicFrustum};
+    use super::OrthographicFrustum;
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum ProjectionType {
         LeftHanded,
@@ -378,9 +378,9 @@ mod tests {
     ) {
         let ortho = OrthographicFrustum::new(size, aspect_ratio, near, far);
         let frustum_from_matrix = match projection {
-            ProjectionType::LeftHanded => Frustum::from_matrix(ortho.matrix_lh(), false),
-            ProjectionType::RightHanded => Frustum::from_matrix(ortho.matrix_rh(), false),
-            ProjectionType::OpenGL => Frustum::from_matrix_gl(ortho.matrix_gl(), false),
+            ProjectionType::LeftHanded => FrustumBuilder::new(ortho.matrix_lh()).build(),
+            ProjectionType::RightHanded => FrustumBuilder::new(ortho.matrix_rh()).build(),
+            ProjectionType::OpenGL => FrustumBuilder::new(ortho.matrix_gl()).opengl().build(),
         };
 
         let frustum = ortho.frustum(projection == ProjectionType::LeftHanded);
@@ -409,9 +409,9 @@ mod tests {
     ) {
         let persp = PerspectiveFrustum::new(fov_y, aspect_ratio, near, far);
         let frustum_from_matrix = match projection {
-            ProjectionType::LeftHanded => Frustum::from_matrix(persp.matrix_lh(), false),
-            ProjectionType::RightHanded => Frustum::from_matrix(persp.matrix_rh(), false),
-            ProjectionType::OpenGL => Frustum::from_matrix_gl(persp.matrix_gl(), false),
+            ProjectionType::LeftHanded => FrustumBuilder::new(persp.matrix_lh()).build(),
+            ProjectionType::RightHanded => FrustumBuilder::new(persp.matrix_rh()).build(),
+            ProjectionType::OpenGL => FrustumBuilder::new(persp.matrix_gl()).opengl().build(),
         };
         let frustum = persp.frustum(projection == ProjectionType::LeftHanded);
         assert_relative_eq!(frustum_from_matrix.top, frustum.top, max_relative = 0.99);
@@ -438,9 +438,11 @@ mod tests {
     ) {
         let persp = PerspectiveFrustum::new(fov_y, aspect_ratio, near, 100.0);
         let frustum_from_matrix = match projection {
-            ProjectionType::LeftHanded => Frustum::from_matrix(persp.matrix_infinite_lh(), false),
-            ProjectionType::RightHanded => Frustum::from_matrix(persp.matrix_infinite_rh(), false),
-            ProjectionType::OpenGL => Frustum::from_matrix_gl(persp.matrix_infinite_gl(), false),
+            ProjectionType::LeftHanded => FrustumBuilder::new(persp.matrix_infinite_lh()).build(),
+            ProjectionType::RightHanded => FrustumBuilder::new(persp.matrix_infinite_rh()).build(),
+            ProjectionType::OpenGL => FrustumBuilder::new(persp.matrix_infinite_gl())
+                .opengl()
+                .build(),
         };
         let frustum = persp.frustum(projection == ProjectionType::LeftHanded);
         assert_relative_eq!(frustum_from_matrix.top, frustum.top, max_relative = 0.99);
@@ -466,15 +468,16 @@ mod tests {
     ) {
         let persp = PerspectiveFrustum::new(fov_y, aspect_ratio, near, 100.0);
         let frustum_from_matrix = match projection {
-            ProjectionType::LeftHanded => {
-                Frustum::from_matrix(persp.matrix_infinite_reverse_lh(), true)
-            }
-            ProjectionType::RightHanded => {
-                Frustum::from_matrix(persp.matrix_infinite_reverse_rh(), true)
-            }
-            ProjectionType::OpenGL => {
-                Frustum::from_matrix_gl(persp.matrix_infinite_reverse_gl(), true)
-            }
+            ProjectionType::LeftHanded => FrustumBuilder::new(persp.matrix_infinite_reverse_lh())
+                .reversed_z()
+                .build(),
+            ProjectionType::RightHanded => FrustumBuilder::new(persp.matrix_infinite_reverse_rh())
+                .reversed_z()
+                .build(),
+            ProjectionType::OpenGL => FrustumBuilder::new(persp.matrix_infinite_reverse_gl())
+                .opengl()
+                .reversed_z()
+                .build(),
         };
         let frustum = persp.frustum(projection == ProjectionType::LeftHanded);
         assert_relative_eq!(frustum_from_matrix.top, frustum.top, max_relative = 0.99);
@@ -496,9 +499,9 @@ mod tests {
     fn test_near_plane_clipping() {
         let perspective = PerspectiveFrustum::new(f32::to_radians(70.0), 1.2, 0.1, 100.0);
 
-        let clip_plane = Plane::from_vec4(Vec4::new(1.0, 0.0, -1.0, -1.0));
+        let clip_plane = Vec4::new(1.0, 0.0, -1.0, -1.0).into();
         let matrix = clip_projection_matrix(clip_plane, perspective.matrix_infinite_gl());
-        let frustum = Frustum::from_matrix(matrix, false);
+        let frustum = FrustumBuilder::new(matrix).build();
 
         assert_relative_eq!(frustum.near, clip_plane, max_relative = 0.99);
         assert_relative_eq!(

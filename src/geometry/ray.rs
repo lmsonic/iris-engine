@@ -30,7 +30,7 @@ impl Ray {
         self.point(t)
     }
 
-    pub fn closest_t_to(&self, point: Vec3) -> f32 {
+    fn closest_t_to(&self, point: Vec3) -> f32 {
         (point - self.start).dot(self.direction) / self.direction.length_squared()
     }
 
