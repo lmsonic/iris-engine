@@ -4,15 +4,15 @@ use egui_winit::State;
 use glam::Vec3;
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
-use wgpu::{CommandEncoder, Device, Queue, StoreOp, TextureFormat, TextureView};
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 use super::color::Color;
 use super::light::{DirectionalLight, Light, PointLight, SpotLight};
+use super::material::{LitMaterialBuilder, Material, PbrMaterialBuilder, UnlitMaterialBuilder};
 
 pub trait GuiViewable {
-    fn gui(&mut self, ui: &mut Ui, queue: &Queue);
+    fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue);
 }
 
 pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
@@ -29,18 +29,20 @@ pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
         // Remove in reverse order
         lights.remove(*i);
     }
-    if ui.button("Add Directional Light").clicked() {
-        lights.push(DirectionalLight::default().into());
-        changed = true;
-    }
-    if ui.button("Add Point Light").clicked() {
-        lights.push(PointLight::default().into());
-        changed = true;
-    }
-    if ui.button("Add Spot Light").clicked() {
-        lights.push(SpotLight::default().into());
-        changed = true;
-    }
+    ui.menu_button("Add Light", |ui| {
+        if ui.button("Directional Light").clicked() {
+            lights.push(DirectionalLight::default().into());
+            changed = true;
+        }
+        if ui.button("Point Light").clicked() {
+            lights.push(PointLight::default().into());
+            changed = true;
+        }
+        if ui.button("Spot Light").clicked() {
+            lights.push(SpotLight::default().into());
+            changed = true;
+        }
+    });
 
     changed || !indices.is_empty()
 }
@@ -161,9 +163,9 @@ impl EguiRenderer {
     }
 
     pub(crate) fn new(
-        device: &Device,
-        output_color_format: TextureFormat,
-        output_depth_format: Option<TextureFormat>,
+        device: &wgpu::Device,
+        output_color_format: wgpu::TextureFormat,
+        output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
         window: &Window,
     ) -> Self {
@@ -204,11 +206,11 @@ impl EguiRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn draw(
         &mut self,
-        device: &Device,
-        queue: &Queue,
-        encoder: &mut CommandEncoder,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
         window: &Window,
-        window_surface_view: &TextureView,
+        window_surface_view: &wgpu::TextureView,
         screen_descriptor: &ScreenDescriptor,
         run_ui: impl FnOnce(&Context),
     ) {
@@ -240,7 +242,7 @@ impl EguiRenderer {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: StoreOp::Store,
+                    store: wgpu::StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
