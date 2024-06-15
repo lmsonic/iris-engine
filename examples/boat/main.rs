@@ -1,13 +1,14 @@
-use glam::Vec3;
+use glam::{Affine3A, Vec3};
 use iris_engine::renderer::{
     bind_group::{BindGroup, BindGroupBuilder},
     buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
     camera::OrbitCamera,
     color::Color,
-    gui::{change_material, color_edit, lights_gui},
+    gui::{color_edit, lights_gui},
     light::{Light, PointLight},
-    material::{Material, MaterialPipelineBuilder, PbrMaterialBuilder},
+    material::{MaterialPipelineBuilder, PbrMaterialBuilder},
     mesh::{Mesh, Vertex},
+    model::Model,
     render_pipeline::{RenderPassBuilder, RenderPipelineWire},
     texture::Texture,
     wgpu_renderer::Renderer,
@@ -20,31 +21,26 @@ struct Example {
     camera_uniform: UniformBuffer<OrbitCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
-    material: Box<dyn for<'a> Material<'a>>,
     depth_texture: Texture,
     light_storage: StorageBufferArray<Light>,
     clear_color: Color,
+    model: Model,
 }
 
 impl iris_engine::renderer::app::App for Example {
     fn gui(&mut self, gui: &egui::Context, r: &Renderer) {
-        egui::Window::new("Boat example")
+        egui::Window::new("Triangle example")
             .resizable(true)
             .vscroll(true)
             .default_open(false)
             .show(gui, |ui| {
-                if self.material.gui(ui, &r.queue, &r.device) {
-                    self.pipeline = MaterialPipelineBuilder::new(self.material.as_ref())
+                if self.model.gui(ui, &r.device, &r.queue) {
+                    self.pipeline = MaterialPipelineBuilder::new(self.model.material())
                         .add_bind_group(&self.bind_group.layout)
                         .depth(self.depth_texture.texture.format())
                         .build::<Vertex>(&r.device, r.config.format);
                 }
-                if change_material(ui, &mut self.material, &r.device, &r.queue) {
-                    self.pipeline = MaterialPipelineBuilder::new(self.material.as_ref())
-                        .add_bind_group(&self.bind_group.layout)
-                        .depth(self.depth_texture.texture.format())
-                        .build::<Vertex>(&r.device, r.config.format);
-                }
+
                 if lights_gui(ui, &mut self.light_storage.data) {
                     self.light_storage.update(&r.queue);
                 }
@@ -57,7 +53,7 @@ impl iris_engine::renderer::app::App for Example {
         egui_renderer: &mut iris_engine::renderer::egui_renderer::EguiRenderer,
         r: &mut Renderer,
     ) {
-        self.material.gui_register(egui_renderer, &r.device);
+        self.model.gui_register(egui_renderer, &r.device);
     }
 
     fn init(r: &mut Renderer) -> Self {
@@ -87,8 +83,10 @@ impl iris_engine::renderer::app::App for Example {
             .diffuse_texture(texture)
             .normal_texture(normal)
             .build(&r.device, &r.queue);
+        let model = Model::new(Affine3A::IDENTITY, boat, material, &r.device);
         let depth_texture = Texture::depth(&r.device, r.config.width, r.config.height);
-        let pipeline = MaterialPipelineBuilder::new(&material)
+        let pipeline = model
+            .pipeline()
             .add_bind_group(&bind_group.layout)
             .depth(depth_texture.texture.format())
             .build::<Vertex>(&r.device, r.config.format);
@@ -99,6 +97,7 @@ impl iris_engine::renderer::app::App for Example {
             .contains(wgpu::Features::POLYGON_MODE_LINE)
             .then(|| {
                 RenderPipelineWire::new()
+                    .add_bind_group(&model.transform_bind_group().layout)
                     .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
                     .depth(depth_texture.texture.format())
@@ -119,10 +118,10 @@ impl iris_engine::renderer::app::App for Example {
             camera_uniform,
             pipeline,
             pipeline_wire,
-            material: Box::new(material),
             depth_texture,
             light_storage,
             clear_color,
+            model,
         }
     }
 
@@ -149,8 +148,9 @@ impl iris_engine::renderer::app::App for Example {
                 .clear_color(self.clear_color.into())
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
-            rpass.set_bind_group(0, &self.material.bind_group().bind_group, &[]);
-            rpass.set_bind_group(1, &self.bind_group.bind_group, &[]);
+            rpass.set_bind_group(0, &self.model.material().bind_group().bind_group, &[]);
+            rpass.set_bind_group(1, &self.model.transform_bind_group().bind_group, &[]);
+            rpass.set_bind_group(2, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(
                 self.index_buffer.buffer.slice(..),
                 wgpu::IndexFormat::Uint32,

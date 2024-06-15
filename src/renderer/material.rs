@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use egui::Ui;
 use image::{DynamicImage, ImageBuffer};
 use wgpu::{include_wgsl, ShaderModuleDescriptor};
@@ -12,7 +14,7 @@ use super::{
     texture::Texture,
 };
 
-pub trait Material<'a> {
+pub trait Material<'a>: Debug {
     fn shader(&self) -> ShaderModuleDescriptor<'a>;
     fn bind_group(&self) -> &BindGroup;
     fn gui(&mut self, _ui: &mut Ui, _queue: &wgpu::Queue, _device: &wgpu::Device) -> bool {
@@ -574,7 +576,7 @@ pub struct MaterialPipelineBuilder;
 
 impl MaterialPipelineBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(material: &dyn for<'a> Material<'a>) -> RenderPipelineBuilder {
+    pub fn new<'a>(material: &'a dyn Material<'a>) -> RenderPipelineBuilder<'a> {
         let shader = material.shader();
         let bind_group = material.bind_group();
         RenderPipelineBuilder::new(shader).add_bind_group(&bind_group.layout)

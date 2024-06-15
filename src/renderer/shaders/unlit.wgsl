@@ -21,13 +21,16 @@ struct Camera {
 @group(0) @binding(1) var s_texture: sampler;
 @group(0) @binding(2) var<uniform> diffuse_color: vec3f;
 
-@group(1) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(0) var<uniform> transform: mat4x4<f32>;
+
+@group(2) @binding(0) var<uniform> camera: Camera;
+
 @vertex
 fn vs_main(
     in: VertexInput,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.clip_position = camera.proj * camera.view * vec4(in.position, 1.0);
+    result.clip_position = camera.proj * camera.view * transform * vec4f(in.position, 1.0);
     result.uv = in.uv;
     return result;
 }

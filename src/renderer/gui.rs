@@ -1,13 +1,55 @@
 use egui::load::SizedTexture;
 use egui::{Button, DragValue, Response, Slider, TextureId, Ui, Vec2};
 
-use glam::Vec3;
+use glam::{Affine3A, Quat, Vec3};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
 use super::color::Color;
 use super::light::{DirectionalLight, Light, PointLight, SpotLight};
 use super::material::{LitMaterialBuilder, Material, PbrMaterialBuilder, UnlitMaterialBuilder};
+
+pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
+    let mut changed = false;
+    ui.collapsing("Transform", |ui| {
+        let (mut scale, rotation, mut translation) = transform.to_scale_rotation_translation();
+        let mut eulers: Vec3 = rotation.to_euler(glam::EulerRot::XYZ).into();
+        if vec3_edit(ui, &mut translation, "Translation", -10.0..=10.0) {
+            transform.translation = translation.into();
+            changed = true;
+        }
+
+        ui.label("Rotation (Euler)");
+        let mut rotation_changed = false;
+        ui.horizontal(|ui| {
+            ui.label("X");
+            rotation_changed |= ui.drag_angle(&mut eulers.x).changed();
+        });
+        ui.horizontal(|ui| {
+            ui.label("Y");
+            rotation_changed |= ui.drag_angle(&mut eulers.y).changed();
+        });
+        ui.horizontal(|ui| {
+            ui.label("Z");
+            rotation_changed |= ui.drag_angle(&mut eulers.z).changed();
+        });
+        if rotation_changed {
+            let rotation = Quat::from_euler(glam::EulerRot::XYZ, eulers.x, eulers.y, eulers.z);
+            *transform = Affine3A::from_scale_rotation_translation(scale, rotation, translation);
+            changed = true;
+        }
+        if vec3_edit(ui, &mut scale, "Scale", -10.0..=10.0)
+            && scale.x != 0.0
+            && scale.y != 0.0
+            && scale.z != 0.0
+        {
+            *transform = Affine3A::from_scale_rotation_translation(scale, rotation, translation);
+            changed = true;
+        }
+    });
+
+    changed
+}
 
 pub fn texture_edit(ui: &mut Ui, texture_id: TextureId, label: &str) -> bool {
     ui.horizontal(|ui| {
@@ -47,32 +89,33 @@ pub fn change_material(
 pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
     let mut changed = false;
     let mut indices = vec![];
-    for (i, gpu_light) in lights.iter_mut().enumerate() {
-        changed |= gpu_light.gui(ui);
-        if ui.button("Remove Light").clicked() {
-            changed = true;
-            indices.push(i);
+    ui.collapsing("Lights", |ui| {
+        for (i, gpu_light) in lights.iter_mut().enumerate() {
+            changed |= gpu_light.gui(ui);
+            if ui.button("Remove Light").clicked() {
+                changed = true;
+                indices.push(i);
+            }
         }
-    }
-    for i in indices.iter().rev() {
-        // Remove in reverse order
-        lights.remove(*i);
-    }
-    ui.menu_button("Add Light", |ui| {
-        if ui.button("Directional Light").clicked() {
-            lights.push(DirectionalLight::default().into());
-            changed = true;
+        for i in indices.iter().rev() {
+            // Remove in reverse order
+            lights.remove(*i);
         }
-        if ui.button("Point Light").clicked() {
-            lights.push(PointLight::default().into());
-            changed = true;
-        }
-        if ui.button("Spot Light").clicked() {
-            lights.push(SpotLight::default().into());
-            changed = true;
-        }
+        ui.menu_button("Add Light", |ui| {
+            if ui.button("Directional Light").clicked() {
+                lights.push(DirectionalLight::default().into());
+                changed = true;
+            }
+            if ui.button("Point Light").clicked() {
+                lights.push(PointLight::default().into());
+                changed = true;
+            }
+            if ui.button("Spot Light").clicked() {
+                lights.push(SpotLight::default().into());
+                changed = true;
+            }
+        });
     });
-
     changed || !indices.is_empty()
 }
 
@@ -126,6 +169,7 @@ pub fn vec3_edit(ui: &mut Ui, v: &mut Vec3, label: &str, range: RangeInclusive<f
     changed |= ui.add(Slider::new(&mut v.z, range).text("Z")).changed();
     changed
 }
+
 pub fn array3_edit(ui: &mut Ui, v: &mut [f32; 3], label: &str, range: RangeInclusive<f32>) -> bool {
     ui.label(label);
 

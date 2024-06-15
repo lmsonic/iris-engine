@@ -17,20 +17,22 @@ struct VertexInput {
 @group(0) @binding(6) var<uniform> specular_exponent: f32;
 @group(0) @binding(7) var<uniform> ambient: vec3f;
 
-@group(1) @binding(0) var<uniform> camera: Camera;
-@group(1) @binding(1) var<storage,read> lights: array<Light>;
+@group(1) @binding(0) var<uniform> transform: mat4x4<f32>;
+
+@group(2) @binding(0) var<uniform> camera: Camera;
+@group(2) @binding(1) var<storage,read> lights: array<Light>;
 
 @vertex
 fn vs_main(
     in: VertexInput,
 ) -> VertexOutput {
     var result: VertexOutput;
-    result.clip_position = camera.proj * camera.view * vec4f(in.position, 1.0);
-    result.position = in.position;
-    result.normal = in.normal;
+    result.clip_position = camera.proj * camera.view * transform * vec4f(in.position, 1.0);
+    result.position = (transform * vec4f(in.position, 1.0)).xyz;
+    result.normal = (transform * vec4f(in.normal, 1.0)).xyz;
     result.uv = in.uv;
-    result.tangent = in.tangent;
-    result.bitangent = in.bitangent;
+    result.tangent = (transform * vec4f(in.tangent, 1.0)).xyz;
+    result.bitangent = (transform * vec4f(in.bitangent, 1.0)).xyz;
     return result;
 }
 

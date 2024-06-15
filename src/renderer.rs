@@ -9,6 +9,7 @@ pub mod gui;
 pub mod light;
 pub mod material;
 pub mod mesh;
+pub mod model;
 pub mod render_pipeline;
 pub mod resources;
 pub mod texture;
