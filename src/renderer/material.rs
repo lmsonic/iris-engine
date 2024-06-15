@@ -26,7 +26,30 @@ pub struct UnlitMaterial {
     pub diffuse_color: UniformBuffer<Color>,
     pub bind_group: BindGroup,
 }
+
 impl UnlitMaterial {
+    const DEFAULT_DIFFUSE_COLOR: Color = Color::WHITE;
+    pub fn default_diffuse_texture() -> DynamicImage {
+        ImageBuffer::from_pixel(1, 1, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into()
+    }
+    pub fn from_pbr(value: PbrMaterial, device: &wgpu::Device) -> Self {
+        let mut s = Self {
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+            bind_group: value.bind_group,
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
+    pub fn from_lit(value: LitMaterial, device: &wgpu::Device) -> Self {
+        let mut s = Self {
+            bind_group: value.bind_group,
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
     fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
         self.bind_group = BindGroupBuilder::new()
             .texture(&self.diffuse_texture)
@@ -88,12 +111,13 @@ impl UnlitMaterialBuilder {
         }
     }
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> UnlitMaterial {
-        let diffuse_color = self.diffuse_color.unwrap_or(Color::WHITE);
-        let diffuse_color = UniformBuffer::new(diffuse_color, device);
+        let diffuse_color = UniformBuffer::new(
+            self.diffuse_color
+                .unwrap_or(UnlitMaterial::DEFAULT_DIFFUSE_COLOR),
+            device,
+        );
         let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
-            let fallback_texture: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into();
-            Texture::new(fallback_texture, device, queue)
+            Texture::new(UnlitMaterial::default_diffuse_texture(), device, queue)
         });
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)
@@ -119,6 +143,43 @@ pub struct LitMaterial {
 }
 
 impl LitMaterial {
+    const DEFAULT_DIFFUSE_COLOR: Color = Color::WHITE;
+    pub fn default_diffuse_texture() -> DynamicImage {
+        ImageBuffer::from_pixel(1, 1, image::Rgba::<u8>([255, 255, 255, 255])).into()
+    }
+    const DEFAULT_SPECULAR_COLOR: Color = Color::WHITE;
+    pub fn default_normal_texture() -> DynamicImage {
+        ImageBuffer::from_pixel(1, 1, image::Rgba::<u8>([0, 0, 255, 255])).into()
+    }
+    const DEFAULT_SPECULAR_EXPONENT: f32 = 100.0;
+    const DEFAULT_AMBIENT_COLOR: Color = Color::new(0.01, 0.01, 0.01);
+
+    pub fn from_pbr(value: PbrMaterial, device: &wgpu::Device) -> Self {
+        let mut s = Self {
+            bind_group: value.bind_group,
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+            normal_map: value.normal_map,
+            specular_color: UniformBuffer::new(Self::DEFAULT_SPECULAR_COLOR, device),
+            specular_exponent: UniformBuffer::new(Self::DEFAULT_SPECULAR_EXPONENT, device),
+            ambient: value.ambient,
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
+    pub fn from_unlit(value: UnlitMaterial, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let mut s = Self {
+            bind_group: value.bind_group,
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+            normal_map: Texture::new(Self::default_normal_texture(), device, queue),
+            specular_color: UniformBuffer::new(Self::DEFAULT_SPECULAR_COLOR, device),
+            specular_exponent: UniformBuffer::new(Self::DEFAULT_SPECULAR_EXPONENT, device),
+            ambient: UniformBuffer::new(Self::DEFAULT_AMBIENT_COLOR, device),
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
     fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
         self.bind_group = BindGroupBuilder::new()
             .texture(&self.diffuse_texture)
@@ -237,22 +298,32 @@ impl LitMaterialBuilder {
         }
     }
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> LitMaterial {
-        let diffuse_color = UniformBuffer::new(self.diffuse_color.unwrap_or(Color::WHITE), device);
-        let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
-            let fallback_texture: DynamicImage =
-                ImageBuffer::from_pixel(1, 1, image::Rgba([255_u8, 255, 255, 255])).into();
-            Texture::new(fallback_texture, device, queue)
-        });
-        let specular_color =
-            UniformBuffer::new(self.specular_color.unwrap_or(Color::WHITE), device);
+        let diffuse_color = UniformBuffer::new(
+            self.diffuse_color
+                .unwrap_or(LitMaterial::DEFAULT_DIFFUSE_COLOR),
+            device,
+        );
+        let diffuse_texture = self
+            .diffuse_texture
+            .unwrap_or_else(|| Texture::new(LitMaterial::default_diffuse_texture(), device, queue));
+        let specular_color = UniformBuffer::new(
+            self.specular_color
+                .unwrap_or(LitMaterial::DEFAULT_SPECULAR_COLOR),
+            device,
+        );
 
-        let specular_exponent = UniformBuffer::new(self.specular_exponent.unwrap_or(100.0), device);
-        let normal_map = self.normal_map.unwrap_or_else(|| {
-            let fallback_normal_texture: DynamicImage =
-                ImageBuffer::from_pixel(1, 1, image::Rgba([0, 0, 255_u8, 155])).into();
-            Texture::new(fallback_normal_texture, device, queue)
-        });
-        let ambient = UniformBuffer::new(self.ambient.unwrap_or(Color::WHITE * 0.1), device);
+        let specular_exponent = UniformBuffer::new(
+            self.specular_exponent
+                .unwrap_or(LitMaterial::DEFAULT_SPECULAR_EXPONENT),
+            device,
+        );
+        let normal_map = self
+            .normal_map
+            .unwrap_or_else(|| Texture::new(LitMaterial::default_normal_texture(), device, queue));
+        let ambient = UniformBuffer::new(
+            self.ambient.unwrap_or(LitMaterial::DEFAULT_AMBIENT_COLOR),
+            device,
+        );
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)
             .uniform(&diffuse_color.buffer)
@@ -286,6 +357,46 @@ pub struct PbrMaterial {
 }
 
 impl PbrMaterial {
+    const DEFAULT_DIFFUSE_COLOR: Color = Color::WHITE;
+    pub fn default_diffuse_texture() -> DynamicImage {
+        ImageBuffer::from_pixel(1, 1, image::Rgba::<u8>([255, 255, 255, 255])).into()
+    }
+    pub fn default_normal_texture() -> DynamicImage {
+        ImageBuffer::from_pixel(1, 1, image::Rgba::<u8>([0, 0, 255, 255])).into()
+    }
+    const DEFAULT_SPECULAR: f32 = 0.5;
+    const DEFAULT_IOR: f32 = 1.4;
+    const DEFAULT_ROUGHNESS: f32 = 1.0;
+    const DEFAULT_AMBIENT_COLOR: Color = Color::new(0.01, 0.01, 0.01);
+
+    pub fn from_lit(value: LitMaterial, device: &wgpu::Device) -> Self {
+        let mut s = Self {
+            bind_group: value.bind_group,
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+            normal_map: value.normal_map,
+            ambient: value.ambient,
+            specular: UniformBuffer::new(Self::DEFAULT_SPECULAR, device),
+            ior: UniformBuffer::new(Self::DEFAULT_IOR, device),
+            roughness: UniformBuffer::new(Self::DEFAULT_ROUGHNESS, device),
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
+    pub fn from_unlit(value: UnlitMaterial, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let mut s = Self {
+            bind_group: value.bind_group,
+            diffuse_texture: value.diffuse_texture,
+            diffuse_color: value.diffuse_color,
+            normal_map: Texture::new(Self::default_normal_texture(), device, queue),
+            ambient: UniformBuffer::new(Self::DEFAULT_AMBIENT_COLOR, device),
+            specular: UniformBuffer::new(Self::DEFAULT_SPECULAR, device),
+            ior: UniformBuffer::new(Self::DEFAULT_IOR, device),
+            roughness: UniformBuffer::new(Self::DEFAULT_ROUGHNESS, device),
+        };
+        s.rebuild_bind_group(device);
+        s
+    }
     fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
         self.bind_group = BindGroupBuilder::new()
             .texture(&self.diffuse_texture)
@@ -411,21 +522,30 @@ impl PbrMaterialBuilder {
         }
     }
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> PbrMaterial {
-        let diffuse_color = UniformBuffer::new(self.diffuse_color.unwrap_or(Color::WHITE), device);
-        let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
-            let default_white_image: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into();
-            Texture::new(default_white_image, device, queue)
-        });
-        let ior = UniformBuffer::new(self.ior.unwrap_or(1.5), device);
-        let specular = UniformBuffer::new(self.specular.unwrap_or(0.5), device);
-        let roughness = UniformBuffer::new(self.roughness.unwrap_or(1.0), device);
-        let normal_map = self.normal_map.unwrap_or_else(|| {
-            let default_normal_map: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([127_u8, 127_u8, 127_u8, 255_u8])).into();
-            Texture::new(default_normal_map, device, queue)
-        });
-        let ambient = UniformBuffer::new(self.ambient.unwrap_or(Color::WHITE * 0.01), device);
+        let diffuse_color = UniformBuffer::new(
+            self.diffuse_color
+                .unwrap_or(PbrMaterial::DEFAULT_DIFFUSE_COLOR),
+            device,
+        );
+        let diffuse_texture = self
+            .diffuse_texture
+            .unwrap_or_else(|| Texture::new(PbrMaterial::default_diffuse_texture(), device, queue));
+        let ior = UniformBuffer::new(self.ior.unwrap_or(PbrMaterial::DEFAULT_IOR), device);
+        let specular = UniformBuffer::new(
+            self.specular.unwrap_or(PbrMaterial::DEFAULT_SPECULAR),
+            device,
+        );
+        let roughness = UniformBuffer::new(
+            self.roughness.unwrap_or(PbrMaterial::DEFAULT_ROUGHNESS),
+            device,
+        );
+        let normal_map = self
+            .normal_map
+            .unwrap_or_else(|| Texture::new(PbrMaterial::default_normal_texture(), device, queue));
+        let ambient = UniformBuffer::new(
+            self.ambient.unwrap_or(PbrMaterial::DEFAULT_AMBIENT_COLOR),
+            device,
+        );
 
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)

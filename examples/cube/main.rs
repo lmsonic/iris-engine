@@ -6,7 +6,7 @@ use iris_engine::{
         buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
-        gui::{color_edit, lights_gui},
+        gui::{change_material, color_edit, lights_gui},
         light::{DirectionalLight, Light},
         material::{Material, MaterialPipelineBuilder, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
@@ -37,6 +37,12 @@ impl iris_engine::renderer::app::App for Example {
             .default_open(false)
             .show(gui, |ui| {
                 if self.material.gui(ui, &r.queue, &r.device) {
+                    self.pipeline = MaterialPipelineBuilder::new(self.material.as_ref())
+                        .add_bind_group(&self.bind_group.layout)
+                        .depth(self.depth_texture.texture.format())
+                        .build::<Vertex>(&r.device, r.config.format);
+                }
+                if change_material(ui, &mut self.material, &r.device, &r.queue) {
                     self.pipeline = MaterialPipelineBuilder::new(self.material.as_ref())
                         .add_bind_group(&self.bind_group.layout)
                         .depth(self.depth_texture.texture.format())

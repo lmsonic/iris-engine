@@ -7,6 +7,7 @@ use std::ops::RangeInclusive;
 
 use super::color::Color;
 use super::light::{DirectionalLight, Light, PointLight, SpotLight};
+use super::material::{LitMaterialBuilder, Material, PbrMaterialBuilder, UnlitMaterialBuilder};
 
 pub fn texture_edit(ui: &mut Ui, texture_id: TextureId, label: &str) -> bool {
     ui.horizontal(|ui| {
@@ -20,6 +21,29 @@ pub fn texture_edit(ui: &mut Ui, texture_id: TextureId, label: &str) -> bool {
     .clicked()
 }
 
+pub fn change_material(
+    ui: &mut Ui,
+    material: &mut Box<dyn for<'a> Material<'a>>,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> bool {
+    let mut changed = false;
+    ui.menu_button("Change Material", |ui| {
+        if ui.button("Unlit").clicked() {
+            *material = Box::new(UnlitMaterialBuilder::new().build(device, queue));
+            changed = true;
+        }
+        if ui.button("Lit (Blinn-Phong").clicked() {
+            *material = Box::new(LitMaterialBuilder::new().build(device, queue));
+            changed = true;
+        }
+        if ui.button("Pbr").clicked() {
+            *material = Box::new(PbrMaterialBuilder::new().build(device, queue));
+            changed = true;
+        }
+    });
+    changed
+}
 pub fn lights_gui(ui: &mut Ui, lights: &mut Vec<Light>) -> bool {
     let mut changed = false;
     let mut indices = vec![];
