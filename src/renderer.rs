@@ -12,3 +12,4 @@ pub mod mesh;
 pub mod render_pipeline;
 pub mod resources;
 pub mod texture;
+pub mod wgpu_renderer;

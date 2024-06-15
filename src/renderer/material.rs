@@ -454,7 +454,7 @@ pub struct MaterialPipelineBuilder;
 
 impl MaterialPipelineBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new<'a, M: Material<'a>>(material: &'a M) -> RenderPipelineBuilder<'a> {
+    pub fn new(material: &dyn for<'a> Material<'a>) -> RenderPipelineBuilder {
         let shader = material.shader();
         let bind_group = material.bind_group();
         RenderPipelineBuilder::new(shader).add_bind_group(&bind_group.layout)

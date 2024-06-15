@@ -2,7 +2,6 @@ use std::{result::Result, sync::Arc, time::Instant};
 
 use egui_wgpu::ScreenDescriptor;
 use winit::{
-    dpi::PhysicalSize,
     error::EventLoopError,
     event::{Event, KeyEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
@@ -10,7 +9,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use super::egui_renderer::EguiRenderer;
+use super::{egui_renderer::EguiRenderer, wgpu_renderer::Renderer};
 
 pub trait App: 'static + Sized {
     const SRGB: bool = true;
@@ -34,193 +33,13 @@ pub trait App: 'static + Sized {
         wgpu::Limits::downlevel_defaults() // These downlevel limits will allow the code to run on all possible hardware
     }
 
-    fn init(
-        config: &wgpu::SurfaceConfiguration,
-        adapter: &wgpu::Adapter,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> Self;
+    fn init(_renderer: &mut Renderer) -> Self;
 
-    fn gui(&mut self, gui: &egui::Context, _ctx: &AppContext, _surface: &SurfaceWrapper) {}
-    fn gui_register(&mut self, _renderer: &mut EguiRenderer, _device: &wgpu::Device) {}
-    fn resize(
-        &mut self,
-        _config: &wgpu::SurfaceConfiguration,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-    ) {
-    }
-
-    fn input(&mut self, _event: WindowEvent, _queue: &wgpu::Queue) {}
-
-    fn render(&mut self, _view: &wgpu::TextureView, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
-}
-
-/// Wrapper type which manages the surface and surface configuration.
-///
-/// As surface usage varies per platform, wrapping this up cleans up the event loop code.
-#[derive(Debug)]
-pub struct SurfaceWrapper {
-    pub surface: wgpu::Surface<'static>,
-    pub config: wgpu::SurfaceConfiguration,
-}
-
-impl SurfaceWrapper {
-    // /// Create a new surface wrapper with no surface or configuration.
-    // const fn new() -> Self {
-    //     Self {
-    //         surface: None,
-    //         config: None,
-    //     }
-    // }
-
-    /// Called when an event which matches [`Self::start_condition`] is received.
-    ///
-    /// On all native platforms, this is where we create the surface.
-    ///
-    /// Additionally, we configure the surface based on the (now valid) window size.
-    fn new(context: &AppContext, window: Arc<Window>, srgb: bool) -> Self {
-        // Window size is only actually valid after we enter the event loop.
-        let window_size = window.inner_size();
-        let width = window_size.width.max(1);
-        let height = window_size.height.max(1);
-
-        tracing::info!("Surface resume {window_size:?}");
-
-        // We didn't create the surface in pre_adapter, so we need to do so now.
-        let surface = context.instance.create_surface(window).unwrap();
-
-        // Get the default configuration,
-        let mut config = surface
-            .get_default_config(&context.adapter, width, height)
-            .expect("Surface isn't supported by the adapter.");
-        if srgb {
-            // Not all platforms (WebGPU) support sRGB swapchains, so we need to use view formats
-            let view_format = config.format.add_srgb_suffix();
-            config.view_formats.push(view_format);
-        } else {
-            // All platforms support non-sRGB swapchains, so we can just use the format directly.
-            let format = config.format.remove_srgb_suffix();
-            config.format = format;
-            config.view_formats.push(format);
-        };
-
-        surface.configure(&context.device, &config);
-        let config = config;
-        Self { surface, config }
-    }
-
-    /// Resize the surface, making sure to not resize to zero.
-    fn resize(&mut self, context: &AppContext, size: PhysicalSize<u32>) {
-        tracing::info!("Surface resize {size:?}");
-
-        self.config.width = size.width.max(1);
-        self.config.height = size.height.max(1);
-        self.surface.configure(&context.device, &self.config);
-    }
-
-    /// Acquire the next surface texture.
-    fn acquire(&mut self, context: &AppContext) -> wgpu::SurfaceTexture {
-        match self.surface.get_current_texture() {
-            Ok(frame) => frame,
-            // If we timed out, just try again
-            Err(wgpu::SurfaceError::Timeout) => self.surface
-                .get_current_texture()
-                .expect("Failed to acquire next surface texture!"),
-            Err(
-                // If the surface is outdated, or was lost, reconfigure it.
-                wgpu::SurfaceError::Outdated
-                | wgpu::SurfaceError::Lost
-                // If OutOfMemory happens, reconfiguring may not help, but we might as well try
-                | wgpu::SurfaceError::OutOfMemory,
-            ) => {
-                self.surface.configure(&context.device, &self.config);
-                self.surface
-                    .get_current_texture()
-                    .expect("Failed to acquire next surface texture!")
-            }
-        }
-    }
-}
-
-/// Context containing global wgpu resources.
-#[derive(Debug)]
-pub struct AppContext {
-    pub instance: wgpu::Instance,
-    pub adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-}
-impl AppContext {
-    /// Initializes the example context.
-    async fn init_async<A: App>() -> Self {
-        tracing::info!("Initializing wgpu...");
-
-        let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
-        let dx12_shader_compiler = wgpu::util::dx12_shader_compiler_from_env().unwrap_or_default();
-        let gles_minor_version = wgpu::util::gles_minor_version_from_env().unwrap_or_default();
-
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends,
-            flags: wgpu::InstanceFlags::from_build_config().with_env(),
-            dx12_shader_compiler,
-            gles_minor_version,
-        });
-
-        let adapter = wgpu::util::initialize_adapter_from_env_or_default(&instance, None)
-            .await
-            .expect("No suitable GPU adapters found on the system!");
-
-        let adapter_info = adapter.get_info();
-        tracing::info!("Using {} ({:?})", adapter_info.name, adapter_info.backend);
-
-        let optional_features = A::optional_features();
-        let required_features = A::required_features();
-        let adapter_features = adapter.features();
-        assert!(
-            adapter_features.contains(required_features),
-            "Adapter does not support required features for this example: {:?}",
-            required_features - adapter_features
-        );
-
-        let required_downlevel_capabilities = A::required_downlevel_capabilities();
-        let downlevel_capabilities = adapter.get_downlevel_capabilities();
-        assert!(
-            downlevel_capabilities.shader_model >= required_downlevel_capabilities.shader_model,
-            "Adapter does not support the minimum shader model required to run this example: {:?}",
-            required_downlevel_capabilities.shader_model
-        );
-        assert!(
-            downlevel_capabilities
-                .flags
-                .contains(required_downlevel_capabilities.flags),
-            "Adapter does not support the downlevel capabilities required to run this example: {:?}",
-            required_downlevel_capabilities.flags - downlevel_capabilities.flags
-        );
-
-        // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
-        let needed_limits = A::required_limits().using_resolution(adapter.limits());
-
-        let trace_dir = std::env::var("WGPU_TRACE");
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: (optional_features & adapter_features) | required_features,
-                    required_limits: needed_limits,
-                },
-                trace_dir.ok().as_ref().map(std::path::Path::new),
-            )
-            .await
-            .expect("Unable to find a suitable GPU adapter!");
-
-        Self {
-            instance,
-            adapter,
-            device,
-            queue,
-        }
-    }
+    fn gui(&mut self, _gui: &egui::Context, _renderer: &Renderer) {}
+    fn gui_register(&mut self, _egui_renderer: &mut EguiRenderer, _renderer: &mut Renderer) {}
+    fn resize(&mut self, _renderer: &mut Renderer) {}
+    fn input(&mut self, _event: WindowEvent, _renderer: &mut Renderer) {}
+    fn render(&mut self, _view: &wgpu::TextureView, _renderer: &mut Renderer) {}
 }
 
 struct FrameCounter {
@@ -256,8 +75,7 @@ impl FrameCounter {
 
 struct AppHandler<A: App> {
     app: A,
-    context: AppContext,
-    surface: SurfaceWrapper,
+    renderer: Renderer,
     window: Arc<Window>,
     frame_counter: FrameCounter,
     egui_renderer: EguiRenderer,
@@ -265,18 +83,12 @@ struct AppHandler<A: App> {
 }
 
 impl<A: App> AppHandler<A> {
-    fn new(context: AppContext, surface: SurfaceWrapper, window: Arc<Window>) -> Self {
+    fn new(mut renderer: Renderer, window: Arc<Window>) -> Self {
         let egui_renderer =
-            EguiRenderer::new(&context.device, surface.config.format, None, 1, &window);
+            EguiRenderer::new(&renderer.device, renderer.config.format, None, 1, &window);
         Self {
-            app: A::init(
-                &surface.config,
-                &context.adapter,
-                &context.device,
-                &context.queue,
-            ),
-            context,
-            surface,
+            app: A::init(&mut renderer),
+            renderer,
             window,
             frame_counter: FrameCounter::new(),
             egui_renderer,
@@ -326,13 +138,8 @@ impl<A: App> AppHandler<A> {
                 }
                 match event {
                     WindowEvent::Resized(size) => {
-                        self.surface.resize(&self.context, size);
-                        self.app.resize(
-                            &self.surface.config,
-                            &self.context.device,
-                            &self.context.queue,
-                        );
-
+                        self.renderer.resize(size);
+                        self.app.resize(&mut self.renderer);
                         self.window.request_redraw();
                     }
                     WindowEvent::KeyboardInput {
@@ -350,42 +157,44 @@ impl<A: App> AppHandler<A> {
                     WindowEvent::RedrawRequested => {
                         self.frame_counter.update();
 
-                        let frame = self.surface.acquire(&self.context);
+                        let frame = self.renderer.acquire();
                         let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-                            format: Some(self.surface.config.view_formats[0]),
+                            format: Some(self.renderer.config.view_formats[0]),
                             ..wgpu::TextureViewDescriptor::default()
                         });
                         self.app
-                            .gui_register(&mut self.egui_renderer, &self.context.device);
+                            .gui_register(&mut self.egui_renderer, &mut self.renderer);
 
-                        self.app
-                            .render(&view, &self.context.device, &self.context.queue);
+                        self.app.render(&view, &mut self.renderer);
 
-                        let mut encoder = self.context.device.create_command_encoder(
+                        let mut encoder = self.renderer.device.create_command_encoder(
                             &wgpu::CommandEncoderDescriptor { label: None },
                         );
                         let screen_descriptor = ScreenDescriptor {
-                            size_in_pixels: [self.surface.config.width, self.surface.config.height],
+                            size_in_pixels: [
+                                self.renderer.config.width,
+                                self.renderer.config.height,
+                            ],
                             pixels_per_point: self.window.scale_factor() as f32 * self.scale_factor,
                         };
 
                         self.egui_renderer.draw(
-                            &self.context.device,
-                            &self.context.queue,
+                            &self.renderer.device,
+                            &self.renderer.queue,
                             &mut encoder,
                             &self.window,
                             &view,
                             &screen_descriptor,
-                            |ctx| self.app.gui(ctx, &self.context, &self.surface),
+                            |ctx| self.app.gui(ctx, &self.renderer),
                         );
-                        self.context.queue.submit(Some(encoder.finish()));
+                        self.renderer.queue.submit(Some(encoder.finish()));
                         frame.present();
 
                         self.window.request_redraw();
                     }
                     _ => {
                         if !response.consumed {
-                            self.app.input(event, &self.context.queue);
+                            self.app.input(event, &mut self.renderer);
                         };
                     }
                 }
@@ -401,9 +210,8 @@ async fn start<A: App>() -> Result<(), EventLoopError> {
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
     event_loop.set_control_flow(ControlFlow::Poll);
-    let context = AppContext::init_async::<A>().await;
-    let surface = SurfaceWrapper::new(&context, window.clone(), A::SRGB);
-    let mut handler = AppHandler::<A>::new(context, surface, window);
+    let renderer = Renderer::new::<A>(window.clone(), A::SRGB).await;
+    let mut handler = AppHandler::<A>::new(renderer, window);
     tracing::info!("Entering event loop...");
     event_loop.run(move |event, elwt| {
         handler.event(event, elwt);
