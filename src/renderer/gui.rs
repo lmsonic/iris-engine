@@ -38,6 +38,7 @@ pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
             *transform = Affine3A::from_scale_rotation_translation(scale, rotation, translation);
             changed = true;
         }
+        // TODO: uniform scale toggle
         if vec3_edit(ui, &mut scale, "Scale", -10.0..=10.0)
             && scale.x != 0.0
             && scale.y != 0.0

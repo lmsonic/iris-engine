@@ -1,7 +1,7 @@
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use approx::{abs_diff_eq, assert_abs_diff_eq};
-use glam::{Mat2, Vec2, Vec3, Vec3Swizzles};
+use glam::{Mat2, Quat, Vec2, Vec3, Vec3Swizzles};
 use hexasphere::shapes::IcoSphere;
 
 use crate::renderer::mesh::{Mesh, Meshable, Vertex};
@@ -349,4 +349,146 @@ impl Cylinder {
         assert_abs_diff_eq!(self.equation(point), 0.0, epsilon = 1e-1);
         Self::gradient(self, point)
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Aabb {
+    pub min: Vec3,
+    pub max: Vec3,
+}
+
+impl Aabb {
+    pub const fn new(min: Vec3, max: Vec3) -> Self {
+        Self { min, max }
+    }
+    pub fn center(&self) -> Vec3 {
+        (self.min + self.max) * 0.5
+    }
+
+    pub fn is_point_inside(&self, point: Vec3) -> bool {
+        point.x >= self.min.x && point.x <= self.max.x
+            || point.y >= self.min.y && point.y <= self.max.y
+            || point.z >= self.min.z && point.z <= self.max.z
+    }
+    pub fn from_points(points: &[Vec3], translation: Vec3, rotation: Quat) -> Self {
+        // Transform all points by rotation
+        let mut iter = points.iter().map(|point| rotation * *point);
+
+        let first = iter
+            .next()
+            .expect("mesh must contain at least one point for Aabb construction");
+
+        let (min, max) = iter.fold((first, first), |(prev_min, prev_max), point| {
+            (point.min(prev_min), point.max(prev_max))
+        });
+
+        Self {
+            min: min + translation,
+            max: max + translation,
+        }
+    }
+}
+impl Meshable for Aabb {
+    fn mesh(&self) -> Mesh {
+        let min = self.min;
+        let max = self.max;
+
+        // Suppose Y-up right hand, and camera look from +Z to -Z
+        let vertices = &[
+            // Front
+            ([min.x, min.y, max.z], [0.0, 0.0, 1.0], [0.0, 0.0]),
+            ([max.x, min.y, max.z], [0.0, 0.0, 1.0], [1.0, 0.0]),
+            ([max.x, max.y, max.z], [0.0, 0.0, 1.0], [1.0, 1.0]),
+            ([min.x, max.y, max.z], [0.0, 0.0, 1.0], [0.0, 1.0]),
+            // Back
+            ([min.x, max.y, min.z], [0.0, 0.0, -1.0], [1.0, 0.0]),
+            ([max.x, max.y, min.z], [0.0, 0.0, -1.0], [0.0, 0.0]),
+            ([max.x, min.y, min.z], [0.0, 0.0, -1.0], [0.0, 1.0]),
+            ([min.x, min.y, min.z], [0.0, 0.0, -1.0], [1.0, 1.0]),
+            // Right
+            ([max.x, min.y, min.z], [1.0, 0.0, 0.0], [0.0, 0.0]),
+            ([max.x, max.y, min.z], [1.0, 0.0, 0.0], [1.0, 0.0]),
+            ([max.x, max.y, max.z], [1.0, 0.0, 0.0], [1.0, 1.0]),
+            ([max.x, min.y, max.z], [1.0, 0.0, 0.0], [0.0, 1.0]),
+            // Left
+            ([min.x, min.y, max.z], [-1.0, 0.0, 0.0], [1.0, 0.0]),
+            ([min.x, max.y, max.z], [-1.0, 0.0, 0.0], [0.0, 0.0]),
+            ([min.x, max.y, min.z], [-1.0, 0.0, 0.0], [0.0, 1.0]),
+            ([min.x, min.y, min.z], [-1.0, 0.0, 0.0], [1.0, 1.0]),
+            // Top
+            ([max.x, max.y, min.z], [0.0, 1.0, 0.0], [1.0, 0.0]),
+            ([min.x, max.y, min.z], [0.0, 1.0, 0.0], [0.0, 0.0]),
+            ([min.x, max.y, max.z], [0.0, 1.0, 0.0], [0.0, 1.0]),
+            ([max.x, max.y, max.z], [0.0, 1.0, 0.0], [1.0, 1.0]),
+            // Bottom
+            ([max.x, min.y, max.z], [0.0, -1.0, 0.0], [0.0, 0.0]),
+            ([min.x, min.y, max.z], [0.0, -1.0, 0.0], [1.0, 0.0]),
+            ([min.x, min.y, min.z], [0.0, -1.0, 0.0], [1.0, 1.0]),
+            ([max.x, min.y, min.z], [0.0, -1.0, 0.0], [0.0, 1.0]),
+        ];
+
+        let vertices: Vec<Vertex> = vertices
+            .iter()
+            .map(|&(p, n, u)| Vertex {
+                position: Vec3::from(p),
+                normal: Vec3::from(n),
+                uv: Vec2::from(u),
+                ..Default::default()
+            })
+            .collect();
+
+        let indices = vec![
+            0, 1, 2, 2, 3, 0, // front
+            4, 5, 6, 6, 7, 4, // back
+            8, 9, 10, 10, 11, 8, // right
+            12, 13, 14, 14, 15, 12, // left
+            16, 17, 18, 18, 19, 16, // top
+            20, 21, 22, 22, 23, 20, // bottom
+        ];
+        Mesh::new(vertices, indices)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BoundingSphere {
+    pub center: Vec3,
+    pub radius: f32,
+}
+
+impl BoundingSphere {
+    pub fn from_points(points: &[Vec3], translation: Vec3, rotation: Quat) -> Self {
+        let center = center_of_points(points);
+        let mut radius_squared = 0.0;
+
+        for point in points {
+            // Get squared version to avoid unnecessary sqrt calls
+            let distance_squared = point.distance_squared(center);
+            if distance_squared > radius_squared {
+                radius_squared = distance_squared;
+            }
+        }
+
+        Self {
+            center: rotation * center + translation,
+            radius: radius_squared.sqrt(),
+        }
+    }
+}
+
+impl From<BoundingSphere> for Sphere {
+    fn from(value: BoundingSphere) -> Self {
+        Self {
+            radius: value.radius,
+        }
+    }
+}
+
+pub fn center_of_points(points: &[Vec3]) -> Vec3 {
+    assert!(
+        !points.is_empty(),
+        "cannot compute the center of an empty mesh"
+    );
+
+    let denom = 1.0 / points.len() as f32;
+    points.iter().fold(Vec3::ZERO, |acc, point| acc + *point) * denom
 }

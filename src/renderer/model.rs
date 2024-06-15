@@ -52,7 +52,6 @@ impl Model {
             changed |= self.material.gui(ui, queue, device);
             changed |= change_material(ui, &mut self.material, device, queue);
         });
-
         changed
     }
 
