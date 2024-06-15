@@ -8,18 +8,18 @@ struct VertexInput {
 };
 
 
-@group(0) @binding(0) var<uniform> camera: Camera;
-@group(0) @binding(1) var<storage,read> lights: array<Light>;
-@group(1) @binding(0) var texture: texture_2d<f32>;
-@group(1) @binding(1) var s_texture: sampler;
-@group(1) @binding(2) var<uniform> diffuse_color: vec3f;
-@group(1) @binding(3) var normal_map: texture_2d<f32>;
-@group(1) @binding(4) var s_normal_map: sampler;
-@group(1) @binding(5) var<uniform> specular: f32;
-@group(1) @binding(6) var<uniform> ior: f32;
-@group(1) @binding(7) var<uniform> roughness: f32;
-@group(1) @binding(8) var<uniform> ambient: vec3f;
+@group(0) @binding(0) var texture: texture_2d<f32>;
+@group(0) @binding(1) var s_texture: sampler;
+@group(0) @binding(2) var<uniform> diffuse_color: vec3f;
+@group(0) @binding(3) var normal_map: texture_2d<f32>;
+@group(0) @binding(4) var s_normal_map: sampler;
+@group(0) @binding(5) var<uniform> specular: f32;
+@group(0) @binding(6) var<uniform> ior: f32;
+@group(0) @binding(7) var<uniform> roughness: f32;
+@group(0) @binding(8) var<uniform> ambient: vec3f;
 
+@group(1) @binding(0) var<uniform> camera: Camera;
+@group(1) @binding(1) var<storage,read> lights: array<Light>;
 
 @vertex
 fn vs_main(

@@ -10,7 +10,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use super::gui::EguiRenderer;
+use super::egui_renderer::EguiRenderer;
 
 pub trait App: 'static + Sized {
     const SRGB: bool = true;
@@ -41,7 +41,8 @@ pub trait App: 'static + Sized {
         queue: &wgpu::Queue,
     ) -> Self;
 
-    fn gui(&mut self, _ctx: &egui::Context, _queue: &wgpu::Queue) {}
+    fn gui(&mut self, gui: &egui::Context, _ctx: &AppContext, _surface: &SurfaceWrapper) {}
+    fn gui_register(&mut self, _renderer: &mut EguiRenderer, _device: &wgpu::Device) {}
     fn resize(
         &mut self,
         _config: &wgpu::SurfaceConfiguration,
@@ -354,6 +355,8 @@ impl<A: App> AppHandler<A> {
                             format: Some(self.surface.config.view_formats[0]),
                             ..wgpu::TextureViewDescriptor::default()
                         });
+                        self.app
+                            .gui_register(&mut self.egui_renderer, &self.context.device);
 
                         self.app
                             .render(&view, &self.context.device, &self.context.queue);
@@ -373,7 +376,7 @@ impl<A: App> AppHandler<A> {
                             &self.window,
                             &view,
                             &screen_descriptor,
-                            |ctx| self.app.gui(ctx, &self.context.queue),
+                            |ctx| self.app.gui(ctx, &self.context, &self.surface),
                         );
                         self.context.queue.submit(Some(encoder.finish()));
                         frame.present();

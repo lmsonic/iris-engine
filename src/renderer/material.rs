@@ -6,14 +6,19 @@ use super::{
     bind_group::{BindGroup, BindGroupBuilder},
     buffer::UniformBuffer,
     color::Color,
-    gui::{color_edit, float_edit},
+    egui_renderer::EguiRenderer,
+    gui::{color_edit, float_edit, texture_edit},
     render_pipeline::RenderPipelineBuilder,
     texture::Texture,
 };
 
 pub trait Material<'a> {
-    fn shader() -> ShaderModuleDescriptor<'a>;
+    fn shader(&self) -> ShaderModuleDescriptor<'a>;
     fn bind_group(&self) -> &BindGroup;
+    fn gui(&mut self, _ui: &mut Ui, _queue: &wgpu::Queue, _device: &wgpu::Device) -> bool {
+        false
+    }
+    fn gui_register(&mut self, _egui_renderer: &mut EguiRenderer, _device: &wgpu::Device) {}
 }
 #[derive(Debug)]
 pub struct UnlitMaterial {
@@ -21,12 +26,42 @@ pub struct UnlitMaterial {
     pub diffuse_color: UniformBuffer<Color>,
     pub bind_group: BindGroup,
 }
-
 impl UnlitMaterial {
-    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+    fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
+        self.bind_group = BindGroupBuilder::new()
+            .texture(&self.diffuse_texture)
+            .uniform(&self.diffuse_color.buffer)
+            .build(device);
+    }
+}
+
+impl<'a> Material<'a> for UnlitMaterial {
+    fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
+    }
+
+    fn shader(&self) -> ShaderModuleDescriptor<'a> {
+        include_wgsl!("shaders/unlit.wgsl")
+    }
+    fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue, device: &wgpu::Device) -> bool {
         if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
             self.diffuse_color.update(queue);
         }
+        if let Some(id) = self.diffuse_texture.egui_id {
+            if texture_edit(ui, id, "Diffuse Texture") {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = Texture::from_path(path, device, queue) {
+                        self.diffuse_texture = texture;
+                        self.rebuild_bind_group(device);
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+    fn gui_register(&mut self, egui_renderer: &mut EguiRenderer, device: &wgpu::Device) {
+        egui_renderer.register_texture(&mut self.diffuse_texture, device);
     }
 }
 
@@ -56,9 +91,9 @@ impl UnlitMaterialBuilder {
         let diffuse_color = self.diffuse_color.unwrap_or(Color::WHITE);
         let diffuse_color = UniformBuffer::new(diffuse_color, device);
         let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
-            let default_white_image: DynamicImage =
+            let fallback_texture: DynamicImage =
                 ImageBuffer::from_pixel(2, 2, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into();
-            Texture::new(default_white_image, device, queue)
+            Texture::new(fallback_texture, device, queue)
         });
         let bind_group = BindGroupBuilder::new()
             .texture(&diffuse_texture)
@@ -84,14 +119,54 @@ pub struct LitMaterial {
 }
 
 impl LitMaterial {
-    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+    fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
+        self.bind_group = BindGroupBuilder::new()
+            .texture(&self.diffuse_texture)
+            .uniform(&self.diffuse_color.buffer)
+            .texture(&self.normal_map)
+            .uniform(&self.specular_color.buffer)
+            .uniform(&self.specular_exponent.buffer)
+            .uniform(&self.ambient.buffer)
+            .build(device);
+    }
+}
+
+impl<'a> Material<'a> for LitMaterial {
+    fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
+    }
+    fn shader(&self) -> ShaderModuleDescriptor<'a> {
+        include_wgsl!("shaders/lit.wgsl")
+    }
+    fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue, device: &wgpu::Device) -> bool {
         if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
             self.diffuse_color.update(queue);
+        }
+        if let Some(id) = self.diffuse_texture.egui_id {
+            if texture_edit(ui, id, "Diffuse Texture") {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = Texture::from_path(path, device, queue) {
+                        self.diffuse_texture = texture;
+                        self.rebuild_bind_group(device);
+                        return true;
+                    }
+                }
+            }
+        }
+        if let Some(id) = self.normal_map.egui_id {
+            if texture_edit(ui, id, "Normal Texture") {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = Texture::from_path(path, device, queue) {
+                        self.normal_map = texture;
+                        self.rebuild_bind_group(device);
+                        return true;
+                    }
+                }
+            }
         }
         if color_edit(ui, &mut self.specular_color.data, "Specular Color") {
             self.specular_color.update(queue);
         }
-
         if float_edit(
             ui,
             &mut self.specular_exponent.data,
@@ -103,6 +178,11 @@ impl LitMaterial {
         if color_edit(ui, &mut self.ambient.data, "Ambient Color") {
             self.ambient.update(queue);
         }
+        false
+    }
+    fn gui_register(&mut self, egui_renderer: &mut EguiRenderer, device: &wgpu::Device) {
+        egui_renderer.register_texture(&mut self.diffuse_texture, device);
+        egui_renderer.register_texture(&mut self.normal_map, device);
     }
 }
 
@@ -159,18 +239,18 @@ impl LitMaterialBuilder {
     pub fn build(self, device: &wgpu::Device, queue: &wgpu::Queue) -> LitMaterial {
         let diffuse_color = UniformBuffer::new(self.diffuse_color.unwrap_or(Color::WHITE), device);
         let diffuse_texture = self.diffuse_texture.unwrap_or_else(|| {
-            let default_white_image: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([255_u8, 255_u8, 255_u8, 255_u8])).into();
-            Texture::new(default_white_image, device, queue)
+            let fallback_texture: DynamicImage =
+                ImageBuffer::from_pixel(1, 1, image::Rgba([255_u8, 255, 255, 255])).into();
+            Texture::new(fallback_texture, device, queue)
         });
         let specular_color =
             UniformBuffer::new(self.specular_color.unwrap_or(Color::WHITE), device);
 
         let specular_exponent = UniformBuffer::new(self.specular_exponent.unwrap_or(100.0), device);
         let normal_map = self.normal_map.unwrap_or_else(|| {
-            let default_normal_map: DynamicImage =
-                ImageBuffer::from_pixel(2, 2, image::Rgba([127_u8, 127_u8, 127_u8, 255_u8])).into();
-            Texture::new(default_normal_map, device, queue)
+            let fallback_normal_texture: DynamicImage =
+                ImageBuffer::from_pixel(1, 1, image::Rgba([0, 0, 255_u8, 155])).into();
+            Texture::new(fallback_normal_texture, device, queue)
         });
         let ambient = UniformBuffer::new(self.ambient.unwrap_or(Color::WHITE * 0.1), device);
         let bind_group = BindGroupBuilder::new()
@@ -206,9 +286,52 @@ pub struct PbrMaterial {
 }
 
 impl PbrMaterial {
-    pub fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue) {
+    fn rebuild_bind_group(&mut self, device: &wgpu::Device) {
+        self.bind_group = BindGroupBuilder::new()
+            .texture(&self.diffuse_texture)
+            .uniform(&self.diffuse_color.buffer)
+            .texture(&self.normal_map)
+            .uniform(&self.specular.buffer)
+            .uniform(&self.ior.buffer)
+            .uniform(&self.roughness.buffer)
+            .uniform(&self.ambient.buffer)
+            .build(device);
+    }
+}
+
+impl<'a> Material<'a> for PbrMaterial {
+    fn bind_group(&self) -> &BindGroup {
+        &self.bind_group
+    }
+
+    fn shader(&self) -> ShaderModuleDescriptor<'a> {
+        include_wgsl!("shaders/pbr.wgsl")
+    }
+    fn gui(&mut self, ui: &mut Ui, queue: &wgpu::Queue, device: &wgpu::Device) -> bool {
         if color_edit(ui, &mut self.diffuse_color.data, "Diffuse Color") {
             self.diffuse_color.update(queue);
+        }
+        if let Some(id) = self.diffuse_texture.egui_id {
+            if texture_edit(ui, id, "Diffuse Texture") {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = Texture::from_path(path, device, queue) {
+                        self.diffuse_texture = texture;
+                        self.rebuild_bind_group(device);
+                        return true;
+                    }
+                }
+            }
+        }
+        if let Some(id) = self.normal_map.egui_id {
+            if texture_edit(ui, id, "Normal Texture") {
+                if let Some(path) = rfd::FileDialog::new().pick_file() {
+                    if let Ok(texture) = Texture::from_path(path, device, queue) {
+                        self.normal_map = texture;
+                        self.rebuild_bind_group(device);
+                        return true;
+                    }
+                }
+            }
         }
         if float_edit(ui, &mut self.specular.data, "Specular Intensity", 0.0..=1.0) {
             self.specular.update(queue);
@@ -222,8 +345,14 @@ impl PbrMaterial {
         if color_edit(ui, &mut self.ambient.data, "Ambient Color") {
             self.ambient.update(queue);
         }
+        false
+    }
+    fn gui_register(&mut self, egui_renderer: &mut EguiRenderer, device: &wgpu::Device) {
+        egui_renderer.register_texture(&mut self.diffuse_texture, device);
+        egui_renderer.register_texture(&mut self.normal_map, device);
     }
 }
+
 #[derive(Default, Debug)]
 pub struct PbrMaterialBuilder {
     diffuse_texture: Option<Texture>,
@@ -320,46 +449,14 @@ impl PbrMaterialBuilder {
     }
 }
 
-impl<'a> Material<'a> for PbrMaterial {
-    fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
-    }
-
-    fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("shaders/pbr.wgsl")
-    }
-}
-
-impl<'a> Material<'a> for UnlitMaterial {
-    fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
-    }
-
-    fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("shaders/unlit.wgsl")
-    }
-}
-impl<'a> Material<'a> for LitMaterial {
-    fn bind_group(&self) -> &BindGroup {
-        &self.bind_group
-    }
-    fn shader() -> ShaderModuleDescriptor<'a> {
-        include_wgsl!("shaders/lit.wgsl")
-    }
-}
 #[derive(Debug, Clone, Copy)]
 pub struct MaterialPipelineBuilder;
 
 impl MaterialPipelineBuilder {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new<'a, M: Material<'a>>(
-        material: &'a M,
-        other_bind_group: &'a wgpu::BindGroupLayout,
-    ) -> RenderPipelineBuilder<'a> {
-        let shader = M::shader();
+    pub fn new<'a, M: Material<'a>>(material: &'a M) -> RenderPipelineBuilder<'a> {
+        let shader = material.shader();
         let bind_group = material.bind_group();
-        RenderPipelineBuilder::new(shader)
-            .add_bind_group(other_bind_group)
-            .add_bind_group(&bind_group.layout)
+        RenderPipelineBuilder::new(shader).add_bind_group(&bind_group.layout)
     }
 }

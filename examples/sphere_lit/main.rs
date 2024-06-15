@@ -2,13 +2,14 @@ use glam::Vec3;
 use iris_engine::{
     geometry::shapes::Sphere,
     renderer::{
+        app::{AppContext, SurfaceWrapper},
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
         gui::{color_edit, lights_gui},
         light::{DirectionalLight, Light},
-        material::{LitMaterial, LitMaterialBuilder, MaterialPipelineBuilder},
+        material::{LitMaterial, LitMaterialBuilder, Material, MaterialPipelineBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
@@ -29,19 +30,32 @@ struct Example {
 }
 
 impl iris_engine::renderer::app::App for Example {
-    fn gui(&mut self, ctx: &egui::Context, queue: &wgpu::Queue) {
+    fn gui(&mut self, ctx: &egui::Context, app: &AppContext, surface: &SurfaceWrapper) {
         egui::Window::new("Sphere Lit example")
             .resizable(true)
             .vscroll(true)
             .default_open(false)
             .show(ctx, |ui| {
-                self.material.gui(ui, queue);
+                if self.material.gui(ui, &app.queue, &app.device) {
+                    self.pipeline = MaterialPipelineBuilder::new(&self.material)
+                        .add_bind_group(&self.bind_group.layout)
+                        .depth(self.depth_texture.texture.format())
+                        .build::<Vertex>(&app.device, surface.config.format);
+                }
                 if lights_gui(ui, &mut self.light_storage.data) {
-                    self.light_storage.update(queue);
+                    self.light_storage.update(&app.queue);
                 }
 
                 color_edit(ui, &mut self.clear_color, "Clear Color");
             });
+    }
+
+    fn gui_register(
+        &mut self,
+        renderer: &mut iris_engine::renderer::egui_renderer::EguiRenderer,
+        device: &wgpu::Device,
+    ) {
+        self.material.gui_register(renderer, device);
     }
 
     fn init(
@@ -68,15 +82,16 @@ impl iris_engine::renderer::app::App for Example {
             .uniform(&camera_uniform.buffer)
             .storage_buffer(&light_storage.buffer)
             .build(device);
-        let texture = Texture::from_path("examples/bricks.jpg", device, queue);
-        let normal = Texture::from_path("examples/bricks_normal.jpg", device, queue);
+        let texture = Texture::from_path("examples/bricks.jpg", device, queue).unwrap();
+        let normal = Texture::from_path("examples/bricks_normal.jpg", device, queue).unwrap();
         let material = LitMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)
             .build(device, queue);
         let depth_texture = Texture::depth(device, config.width, config.height);
 
-        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
+        let pipeline = MaterialPipelineBuilder::new(&material)
+            .add_bind_group(&bind_group.layout)
             .depth(depth_texture.texture.format())
             .build::<Vertex>(device, config.format);
 
@@ -139,8 +154,8 @@ impl iris_engine::renderer::app::App for Example {
                 .depth(&self.depth_texture.view)
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
-            rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
-            rpass.set_bind_group(1, &self.material.bind_group.bind_group, &[]);
+            rpass.set_bind_group(0, &self.material.bind_group.bind_group, &[]);
+            rpass.set_bind_group(1, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(
                 self.index_buffer.buffer.slice(..),
                 wgpu::IndexFormat::Uint32,

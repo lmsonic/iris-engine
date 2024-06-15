@@ -1,4 +1,5 @@
-use image::DynamicImage;
+use egui::TextureId;
+use image::{DynamicImage, ImageError};
 
 use crate::renderer::resources::get_max_mip_level_count;
 
@@ -11,6 +12,7 @@ pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
+    pub egui_id: Option<TextureId>,
 }
 
 impl Texture {
@@ -35,12 +37,16 @@ impl Texture {
             texture,
             view,
             sampler,
+            egui_id: None,
         }
     }
-    pub fn from_path(path: impl AsRef<Path>, device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
-        let pathbuf = path.as_ref().to_owned();
-        let image =
-            image::open(&path).unwrap_or_else(|_| panic!("Could not open {:?}", pathbuf.display()));
+
+    pub fn from_path(
+        path: impl AsRef<Path>,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> Result<Self, ImageError> {
+        let image = image::open(&path)?;
 
         let (texture, view) = load_texture(image, device, queue);
 
@@ -58,11 +64,12 @@ impl Texture {
             anisotropy_clamp: 1,
             border_color: None,
         });
-        Self {
+        Ok(Self {
             texture,
             view,
             sampler,
-        }
+            egui_id: None,
+        })
     }
 
     pub fn cubemap(
@@ -155,6 +162,7 @@ impl Texture {
             texture,
             view,
             sampler,
+            egui_id: None,
         }
     }
     pub fn depth(device: &wgpu::Device, width: u32, height: u32) -> Self {
@@ -200,6 +208,11 @@ impl Texture {
             texture,
             view,
             sampler,
+            egui_id: None,
         }
+    }
+
+    pub fn set_egui_id(&mut self, egui_id: TextureId) {
+        self.egui_id = Some(egui_id);
     }
 }

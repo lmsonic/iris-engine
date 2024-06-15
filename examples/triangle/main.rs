@@ -2,12 +2,13 @@ use glam::Vec3;
 use iris_engine::{
     geometry::shapes::Triangle,
     renderer::{
+        app::{AppContext, SurfaceWrapper},
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, UniformBuffer, VertexBuffer},
         camera::OrbitCamera,
         color::Color,
         gui::color_edit,
-        material::{MaterialPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
+        material::{Material, MaterialPipelineBuilder, UnlitMaterial, UnlitMaterialBuilder},
         mesh::{Meshable, Vertex},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
     },
@@ -25,15 +26,27 @@ struct Example {
 }
 
 impl iris_engine::renderer::app::App for Example {
-    fn gui(&mut self, ctx: &egui::Context, queue: &wgpu::Queue) {
+    fn gui(&mut self, ctx: &egui::Context, app: &AppContext, surface: &SurfaceWrapper) {
         egui::Window::new("Triangle example")
             .resizable(true)
             .vscroll(true)
             .default_open(false)
             .show(ctx, |ui| {
-                self.material.gui(ui, queue);
+                if self.material.gui(ui, &app.queue, &app.device) {
+                    self.pipeline = MaterialPipelineBuilder::new(&self.material)
+                        .add_bind_group(&self.bind_group.layout)
+                        .build::<Vertex>(&app.device, surface.config.format);
+                }
+
                 color_edit(ui, &mut self.clear_color, "Clear Color");
             });
+    }
+    fn gui_register(
+        &mut self,
+        egui_renderer: &mut iris_engine::renderer::egui_renderer::EguiRenderer,
+        device: &wgpu::Device,
+    ) {
+        self.material.gui_register(egui_renderer, device);
     }
 
     fn init(
@@ -57,8 +70,8 @@ impl iris_engine::renderer::app::App for Example {
             .build(device);
 
         let material = UnlitMaterialBuilder::new().build(device, queue);
-        let pipeline = MaterialPipelineBuilder::new(&material, &bind_group.layout)
-            .cull_mode(None)
+        let pipeline = MaterialPipelineBuilder::new(&material)
+            .add_bind_group(&bind_group.layout)
             .build::<Vertex>(device, config.format);
 
         let pipeline_wire = device
@@ -115,8 +128,8 @@ impl iris_engine::renderer::app::App for Example {
                 .clear_color(self.clear_color.into())
                 .build(&mut encoder, view);
             rpass.set_pipeline(&self.pipeline);
-            rpass.set_bind_group(0, &self.bind_group.bind_group, &[]);
-            rpass.set_bind_group(1, &self.material.bind_group.bind_group, &[]);
+            rpass.set_bind_group(0, &self.material.bind_group.bind_group, &[]);
+            rpass.set_bind_group(1, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(
                 self.index_buffer.buffer.slice(..),
                 wgpu::IndexFormat::Uint32,

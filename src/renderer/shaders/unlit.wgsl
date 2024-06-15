@@ -17,11 +17,11 @@ struct Camera {
     inv_view: mat4x4<f32>,
     position: vec3f,
 }
-@group(0) @binding(0) var<uniform> camera: Camera;
-@group(1) @binding(0) var texture: texture_2d<f32>;
-@group(1) @binding(1) var s_texture: sampler;
-@group(1) @binding(2) var<uniform> diffuse_color: vec3f;
+@group(0) @binding(0) var texture: texture_2d<f32>;
+@group(0) @binding(1) var s_texture: sampler;
+@group(0) @binding(2) var<uniform> diffuse_color: vec3f;
 
+@group(1) @binding(0) var<uniform> camera: Camera;
 @vertex
 fn vs_main(
     in: VertexInput,
