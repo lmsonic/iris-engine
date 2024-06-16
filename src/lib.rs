@@ -2,6 +2,7 @@ use bytemuck::{Pod, Zeroable};
 
 pub mod geometry;
 pub mod renderer;
+pub mod visibility;
 
 pub trait GpuSendable<T>
 where

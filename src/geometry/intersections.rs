@@ -63,7 +63,7 @@ impl Ray {
         }
         for plane in planes {
             if let Some(point) = self.intersect_plane(plane) {
-                if cuboid.is_point_inside(point) {
+                if cuboid.contains(point) {
                     return Some(point);
                 }
             }
@@ -283,7 +283,7 @@ mod tests {
         if let Some(point) = ray.intersect_cuboid(cuboid) {
             assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-1);
             assert!(cuboid.is_point_on_surface(point));
-            assert!(cuboid.is_point_inside(point));
+            assert!(cuboid.contains(point));
         }
     }
     fn _test_intersect_sphere(ray: Ray, sphere: Sphere) {
