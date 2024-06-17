@@ -1,5 +1,5 @@
 use approx::{abs_diff_eq, AbsDiffEq, RelativeEq};
-use glam::{Mat3, Vec3, Vec4};
+use glam::{Mat3, Mat4, Vec3, Vec4};
 
 use super::ray::Ray;
 
@@ -53,6 +53,32 @@ impl Plane {
         };
         self.intersection_with_planes(other, line_plane)
             .map(|point| Ray::new(point, direction))
+    }
+
+    pub fn clip_projection_matrix(&self, mut matrix: Mat4) -> Mat4 {
+        let inverse = matrix.inverse();
+        let clip_plane = self.homogeneous();
+        // transform into clip space
+        let proj_clip_plane = inverse.transpose() * clip_plane;
+        // Corner opposite to clip plane
+        let proj_corner = Vec4::new(
+            proj_clip_plane.x.signum(),
+            proj_clip_plane.y.signum(),
+            1.0,
+            1.0,
+        );
+        // transform into camera space
+        let corner = inverse * proj_corner;
+        let r4 = matrix.row(3);
+        // find the scale factor u for the plane to force far_plane.dot(corner) == 0 : far plane to contain the corner
+        let u = 2.0 * r4.dot(corner) / clip_plane.dot(corner);
+        let new_r3 = u * clip_plane - r4;
+
+        matrix.x_axis[2] = new_r3.x;
+        matrix.y_axis[2] = new_r3.y;
+        matrix.z_axis[2] = new_r3.z;
+        matrix.w_axis[2] = new_r3.w;
+        matrix
     }
 }
 

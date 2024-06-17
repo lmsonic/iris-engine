@@ -133,7 +133,7 @@ impl iris_engine::renderer::app::App for Example {
 
     fn resize(&mut self, r: &mut Renderer) {
         let aspect_ratio = r.config.width as f32 / r.config.height as f32;
-        self.camera_uniform.data.set_projection(aspect_ratio);
+        self.camera_uniform.data.set_aspect_ratio(aspect_ratio);
         self.camera_uniform.update(&r.queue);
         self.depth_texture = Texture::depth(&r.device, r.config.width, r.config.height);
     }
