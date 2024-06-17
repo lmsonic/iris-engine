@@ -12,7 +12,7 @@ pub trait Meshable {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable, Default)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable, Default, PartialEq)]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
@@ -50,7 +50,7 @@ impl Vertex {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,

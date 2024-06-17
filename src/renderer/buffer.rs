@@ -5,6 +5,8 @@ use wgpu::util::DeviceExt;
 
 use crate::GpuSendable;
 
+use super::resources::VertexAttributeLayout;
+
 #[derive(Debug)]
 pub struct VertexBuffer<A> {
     pub vertices: Vec<A>,
@@ -13,7 +15,7 @@ pub struct VertexBuffer<A> {
 
 impl<A> VertexBuffer<A>
 where
-    A: Debug + Clone + Copy + Pod + Zeroable,
+    A: Debug + Clone + Copy + Pod + Zeroable + VertexAttributeLayout,
 {
     pub fn new(vertices: Vec<A>, device: &wgpu::Device) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

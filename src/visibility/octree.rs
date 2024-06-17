@@ -1,24 +1,26 @@
 use glam::Vec3;
+use itertools::Itertools;
 
-use crate::renderer::model::Model;
+use crate::renderer::model::InstancedModel;
 
 use super::{bounding_volume::Aabb, frustum::Frustum};
 
 #[derive(Debug, Clone, Copy)]
 pub struct OctantId(pub usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Octree<'a> {
     root: Octant<'a>,
     depth: usize,
 }
 
 impl<'a> Octree<'a> {
-    pub fn new(models: Vec<&'a Model>, depth: usize) -> Self {
+    pub fn new(models: &'a [InstancedModel], depth: usize) -> Self {
         let mut min = Vec3::INFINITY;
         let mut max = Vec3::NEG_INFINITY;
-        for model in &models {
+        for model in models {
             let obb = model.bounding_box();
+
             let box_min = obb.min();
             let box_max = obb.max();
             min.x = f32::min(min.x, box_min.x);
@@ -28,28 +30,32 @@ impl<'a> Octree<'a> {
             max.y = f32::max(max.y, box_max.y);
             max.z = f32::max(max.z, box_max.z);
         }
-        let aabb = Aabb::new(min, max);
+        let aabb = Aabb::from_min_max(min, max);
+
+        let models = models.iter().collect_vec();
+
         let root = Octant::new(models, aabb, depth);
+
         Self { root, depth }
     }
 
-    pub fn visible_models(&self, frustum: Frustum) -> Vec<&Model> {
+    pub fn visible_models(&self, frustum: Frustum) -> Vec<&InstancedModel> {
         self.root.visible_models(frustum, self.depth)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Octant<'a> {
     aabb: Aabb,
-    models: Vec<&'a Model>,
+    models: Vec<&'a InstancedModel>,
     children: [Option<Box<Octant<'a>>>; 8],
 }
 
 impl<'a> Octant<'a> {
-    pub fn new(models: Vec<&'a Model>, aabb: Aabb, depth: usize) -> Self {
-        let depth = depth - 1;
+    pub fn new(mut models: Vec<&'a InstancedModel>, aabb: Aabb, depth: usize) -> Self {
         let children_aabb = split_aabb_in_8(aabb);
         let mut children: [Option<Box<Octant>>; 8] = Default::default();
+        models.dedup();
         for (i, child_aabb) in children_aabb.into_iter().enumerate() {
             let mut children_models = vec![];
 
@@ -59,36 +65,42 @@ impl<'a> Octant<'a> {
                     children_models.push(*model);
                 }
             }
+
             if children_models.is_empty() {
                 children[i] = None;
             } else if depth > 0 {
-                children[i] = Some(Box::new(Octant::new(children_models, child_aabb, depth)));
+                children[i] = Some(Box::new(Octant::new(
+                    children_models,
+                    child_aabb,
+                    depth - 1,
+                )));
             }
         }
-
+        println!(" {} models at depth {depth} ", models.len());
         Self {
             aabb,
             models,
             children,
         }
     }
-    pub fn visible_models(&self, frustum: Frustum, depth: usize) -> Vec<&Model> {
+    pub fn visible_models(&self, frustum: Frustum, depth: usize) -> Vec<&InstancedModel> {
         let mut visible_models = vec![];
         if depth == 0 {
             // Leaf node
-            visible_models.copy_from_slice(&self.models);
+            visible_models.extend_from_slice(&self.models);
+            visible_models.dedup();
+            println!(" {} visible models at depth {depth} ", visible_models.len());
+            return visible_models;
         }
-        let non_empty_children: Vec<_> = self.children.iter().flatten().collect();
-        if non_empty_children.is_empty() {
-            // Also leaf node
-            visible_models.copy_from_slice(&self.models);
-        }
-        for child in non_empty_children {
-            if frustum.contains_bounding_box(child.aabb) {
-                visible_models.append(&mut child.visible_models(frustum, depth - 1));
+        if frustum.contains_bounding_box(self.aabb) {
+            for child in self.children.iter().flatten() {
+                if frustum.contains_bounding_box(child.aabb) {
+                    visible_models.append(&mut child.visible_models(frustum, depth - 1));
+                    visible_models.dedup();
+                }
             }
+            println!(" {} visible models at depth {depth} ", visible_models.len());
         }
-
         visible_models
     }
 }
@@ -104,7 +116,7 @@ fn split_aabb_in_8(aabb: Aabb) -> [Aabb; 8] {
     let v6 = center + Vec3::new(-half_size.x, half_size.y, -half_size.z); //-+-
     let v7 = center + Vec3::new(-half_size.x, -half_size.y, half_size.z); //--+
     let v8 = center + Vec3::new(-half_size.x, -half_size.y, -half_size.z); //---
-    let octave_size = aabb.size / 8.0;
+    let octave_size = aabb.size / 2.0;
     [
         Aabb::new(v1, octave_size),
         Aabb::new(v2, octave_size),

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use glam::{Affine3A, Vec3};
 use iris_engine::{
     geometry::shapes::Triangle,
@@ -82,7 +84,7 @@ impl iris_engine::renderer::app::App for Example {
             .storage_buffer(&light_storage.buffer)
             .build(&r.device);
         let material = UnlitMaterialBuilder::new().build(&r.device, &r.queue);
-        let model = Model::new(Affine3A::IDENTITY, triangle, material, &r.device);
+        let model = Model::new(Affine3A::IDENTITY, Rc::new(triangle), material, &r.device);
         let depth_texture = Texture::depth(&r.device, r.config.width, r.config.height);
         let pipeline = model
             .pipeline()

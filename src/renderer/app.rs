@@ -11,7 +11,7 @@ use winit::{
 
 use super::{egui_renderer::EguiRenderer, wgpu_renderer::Renderer};
 
-pub trait App: 'static + Sized {
+pub trait App: Sized {
     const SRGB: bool = true;
 
     fn optional_features() -> wgpu::Features {

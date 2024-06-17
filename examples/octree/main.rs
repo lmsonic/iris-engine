@@ -1,6 +1,6 @@
-use std::rc::Rc;
+use std::{ptr, rc::Rc};
 
-use glam::{Affine3A, Vec3};
+use glam::{Affine3A, Mat4, Vec3};
 use iris_engine::{
     geometry::shapes::Sphere,
     renderer::{
@@ -10,13 +10,14 @@ use iris_engine::{
         color::Color,
         gui::{color_edit, lights_gui},
         light::{Light, PointLight},
-        material::{LitMaterialBuilder, MaterialPipelineBuilder},
+        material::{MaterialPipelineBuilder, PbrMaterialBuilder},
         mesh::{Meshable, Vertex},
-        model::Model,
+        model::{Instance, InstancedModel, Model},
         render_pipeline::{RenderPassBuilder, RenderPipelineWire},
         texture::Texture,
         wgpu_renderer::Renderer,
     },
+    visibility::octree::{self, Octree},
 };
 
 struct Example {
@@ -30,6 +31,7 @@ struct Example {
     light_storage: StorageBufferArray<Light>,
     clear_color: Color,
     model: Model,
+    instances: VertexBuffer<Instance>,
 }
 
 impl iris_engine::renderer::app::App for Example {
@@ -62,7 +64,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn init(r: &mut Renderer) -> Self {
-        let sphere = Sphere::new(1.0).mesh();
+        let sphere = Sphere::new(0.1).mesh();
         let vertices = sphere.vertices();
         let indices = sphere.indices();
         let vertex_buffer = VertexBuffer::new(vertices, &r.device);
@@ -84,17 +86,17 @@ impl iris_engine::renderer::app::App for Example {
             .build(&r.device);
         let texture = Texture::from_path("examples/bricks.jpg", &r.device, &r.queue).unwrap();
         let normal = Texture::from_path("examples/bricks_normal.jpg", &r.device, &r.queue).unwrap();
-        let material = LitMaterialBuilder::new()
+        let material = PbrMaterialBuilder::new()
             .diffuse_texture(texture)
             .normal_texture(normal)
             .build(&r.device, &r.queue);
-        let model = Model::new(Affine3A::IDENTITY, Rc::new(sphere), material, &r.device);
+        let original_model = Model::new(Affine3A::IDENTITY, Rc::new(sphere), material, &r.device);
         let depth_texture = Texture::depth(&r.device, r.config.width, r.config.height);
-        let pipeline = model
+        let pipeline = original_model
             .pipeline()
             .add_bind_group(&bind_group.layout)
             .depth(depth_texture.texture.format())
-            .build::<Vertex>(&r.device, r.config.format);
+            .build_with_instancing::<Vertex, Instance>(&r.device, r.config.format);
 
         let pipeline_wire = r
             .device
@@ -102,12 +104,12 @@ impl iris_engine::renderer::app::App for Example {
             .contains(wgpu::Features::POLYGON_MODE_LINE)
             .then(|| {
                 RenderPipelineWire::new()
-                    .add_bind_group(&model.transform_bind_group().layout)
+                    .add_bind_group(&original_model.transform_bind_group().layout)
                     .add_bind_group(&bind_group.layout)
                     .polygon_mode(wgpu::PolygonMode::Line)
                     .depth(depth_texture.texture.format())
                     .cull_mode(None)
-                    .build::<Vertex>(&r.device, r.config.format)
+                    .build_with_instancing::<Vertex, Instance>(&r.device, r.config.format)
             });
 
         let clear_color = Color {
@@ -115,7 +117,30 @@ impl iris_engine::renderer::app::App for Example {
             g: 0.2,
             b: 0.3,
         };
-        // Done
+        const NUM_INSTANCES_PER_ROW: i32 = 10;
+        const INSTANCE_DISPLACEMENT: Vec3 = Vec3::new(
+            NUM_INSTANCES_PER_ROW as f32 * 0.5,
+            NUM_INSTANCES_PER_ROW as f32 * 0.5,
+            NUM_INSTANCES_PER_ROW as f32 * 0.5,
+        );
+
+        let instances = (0..NUM_INSTANCES_PER_ROW)
+            .flat_map(|x| {
+                (0..NUM_INSTANCES_PER_ROW).flat_map(move |y| {
+                    (0..NUM_INSTANCES_PER_ROW).map(move |z| {
+                        let position = Vec3 {
+                            x: x as f32,
+                            y: y as f32,
+                            z: z as f32,
+                        } - INSTANCE_DISPLACEMENT;
+
+                        Instance::new(Mat4::from_translation(position))
+                    })
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let instances = VertexBuffer::new(instances, &r.device);
         Self {
             vertex_buffer,
             index_buffer,
@@ -126,7 +151,8 @@ impl iris_engine::renderer::app::App for Example {
             depth_texture,
             light_storage,
             clear_color,
-            model,
+            model: original_model,
+            instances,
         }
     }
 
@@ -144,6 +170,27 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn render(&mut self, view: &wgpu::TextureView, r: &mut Renderer) {
+        let frustum = self.camera_uniform.data.camera().frustum(false, false);
+        let instanced_models: Vec<InstancedModel> = self
+            .instances
+            .vertices
+            .iter()
+            .map(|t| {
+                let transform =
+                    Affine3A::from_mat4(Mat4::from_cols(t.x_axis, t.y_axis, t.z_axis, t.w_axis));
+                InstancedModel::new(transform, Rc::clone(self.model.mesh()))
+            })
+            .collect();
+        dbg!(instanced_models.len());
+        let octree = Octree::new(&instanced_models, 2);
+        let mut models = octree.visible_models(frustum);
+        models.dedup_by(|a, b| ptr::addr_eq(a, b));
+        let visible_instances: Vec<Instance> = models
+            .iter()
+            .map(|m| Instance::new(Mat4::from(m.transform)))
+            .collect();
+        dbg!(visible_instances.len());
+        let visible_buffer = VertexBuffer::new(visible_instances, &r.device);
         let mut encoder = r
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
@@ -161,7 +208,12 @@ impl iris_engine::renderer::app::App for Example {
                 wgpu::IndexFormat::Uint32,
             );
             rpass.set_vertex_buffer(0, self.vertex_buffer.buffer.slice(..));
-            rpass.draw_indexed(0..self.index_buffer.indices.len() as u32, 0, 0..1);
+            rpass.set_vertex_buffer(1, self.instances.buffer.slice(..));
+            rpass.draw_indexed(
+                0..self.index_buffer.indices.len() as u32,
+                0,
+                0..self.instances.vertices.len() as u32,
+            );
             if let Some(ref pipe) = self.pipeline_wire {
                 rpass.set_pipeline(pipe);
                 rpass.draw_indexed(0..self.index_buffer.indices.len() as u32, 0, 0..1);

@@ -105,6 +105,10 @@ impl OrbitCamera {
         }
         false
     }
+
+    pub const fn camera(&self) -> PerspectiveCamera {
+        self.camera
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub struct PerspectiveCamera {

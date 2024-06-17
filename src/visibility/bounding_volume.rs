@@ -4,7 +4,7 @@ use glam::{Affine3A, Quat, Vec2, Vec3};
 
 use crate::renderer::mesh::{Mesh, Meshable, Vertex};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Aabb {
     pub center: Vec3,
     pub size: Vec3,

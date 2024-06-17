@@ -1,5 +1,8 @@
+use std::rc::Rc;
+
+use bytemuck::{Pod, Zeroable};
 use egui::Ui;
-use glam::{Affine3A, Mat4};
+use glam::{Affine3A, Mat4, Vec4};
 
 use crate::visibility::bounding_volume::{Aabb, Obb};
 
@@ -11,12 +14,67 @@ use super::{
     material::{Material, MaterialPipelineBuilder},
     mesh::Mesh,
     render_pipeline::RenderPipelineBuilder,
+    resources::VertexAttributeLayout,
 };
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+pub struct Instance {
+    pub x_axis: Vec4,
+    pub y_axis: Vec4,
+    pub z_axis: Vec4,
+    pub w_axis: Vec4,
+}
+
+impl VertexAttributeLayout for Instance {
+    fn layout() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+        const ATTRIBUTES: [wgpu::VertexAttribute; 4] =
+            wgpu::vertex_attr_array![5=>Float32x4,6=>Float32x4,7=>Float32x4,8=>Float32x4];
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &ATTRIBUTES,
+        }
+    }
+}
+
+impl Instance {
+    pub const fn new(transform: Mat4) -> Self {
+        Self {
+            x_axis: transform.x_axis,
+            y_axis: transform.y_axis,
+            z_axis: transform.z_axis,
+            w_axis: transform.w_axis,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InstancedModel {
+    pub transform: Affine3A,
+    pub mesh: Rc<Mesh>,
+    pub bounding_box: Aabb,
+}
+
+impl InstancedModel {
+    pub fn new(transform: Affine3A, mesh: Rc<Mesh>) -> Self {
+        let bounding_box = mesh.calculate_bounding_box();
+        Self {
+            transform,
+            mesh,
+            bounding_box,
+        }
+    }
+    pub fn bounding_box(&self) -> Obb {
+        self.transform * self.bounding_box
+    }
+}
 
 #[derive(Debug)]
 pub struct Model {
     transform: Affine3A,
-    mesh: Mesh,
+    mesh: Rc<Mesh>,
     material: Box<dyn for<'a> Material<'a>>,
     transform_uniform: UniformBuffer<Mat4>,
     transform_bind_group: BindGroup,
@@ -26,7 +84,7 @@ pub struct Model {
 impl Model {
     pub fn new<M: for<'a> Material<'a> + 'static>(
         transform: Affine3A,
-        mesh: Mesh,
+        mesh: Rc<Mesh>,
         material: M,
         device: &wgpu::Device,
     ) -> Self {
@@ -71,7 +129,7 @@ impl Model {
         self.transform_uniform.update(queue);
     }
 
-    pub fn set_mesh(&mut self, mesh: Mesh) {
+    pub fn set_mesh(&mut self, mesh: Rc<Mesh>) {
         self.mesh = mesh;
         self.bounding_box = self.mesh.calculate_bounding_box();
     }
@@ -84,7 +142,7 @@ impl Model {
         &self.transform_bind_group
     }
 
-    pub const fn mesh(&self) -> &Mesh {
+    pub const fn mesh(&self) -> &Rc<Mesh> {
         &self.mesh
     }
 

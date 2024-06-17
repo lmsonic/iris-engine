@@ -131,6 +131,77 @@ impl<'a> RenderPipelineBuilder<'a> {
             multiview: None,
         })
     }
+    pub fn build_with_instancing<T, I>(
+        self,
+        device: &'a wgpu::Device,
+        surface_format: wgpu::TextureFormat,
+    ) -> wgpu::RenderPipeline
+    where
+        T: Clone + Copy + bytemuck::Pod + bytemuck::Zeroable + VertexAttributeLayout,
+        I: Clone + Copy + bytemuck::Pod + bytemuck::Zeroable + VertexAttributeLayout,
+    {
+        let module = device.create_shader_module(self.shader);
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &self.bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+        device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &module,
+                entry_point: "vs_main",
+                buffers: &[T::layout(), I::layout()],
+                // compilation_options: Default::default(),
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: self.cull_mode,
+                polygon_mode: self.polygon_mode.map_or_else(Default::default, |m| m),
+                ..Default::default()
+            },
+            depth_stencil: self.depth_texture_format.map(|depth_texture_format| {
+                wgpu::DepthStencilState {
+                    format: depth_texture_format,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: wgpu::StencilState::default(),
+                    bias: wgpu::DepthBiasState::default(),
+                }
+            }),
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &module,
+                entry_point: self.fragment_entry.map_or("fs_main", |f| f),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: surface_format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::SrcAlpha,
+                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::Zero,
+                            dst_factor: wgpu::BlendFactor::One,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                    }),
+                    write_mask: wgpu::ColorWrites::all(),
+                })],
+                // compilation_options: Default::default(),
+            }),
+            multiview: None,
+        })
+    }
 }
 
 #[derive(Default, Debug)]

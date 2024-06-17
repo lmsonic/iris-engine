@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use glam::{Affine3A, Vec3};
 use iris_engine::{
     geometry::shapes::Cuboid,
@@ -85,7 +87,7 @@ impl iris_engine::renderer::app::App for Example {
         let material = UnlitMaterialBuilder::new()
             .diffuse_texture(texture)
             .build(&r.device, &r.queue);
-        let model = Model::new(Affine3A::IDENTITY, cube, material, &r.device);
+        let model = Model::new(Affine3A::IDENTITY, Rc::new(cube), material, &r.device);
         let depth_texture = Texture::depth(&r.device, r.config.width, r.config.height);
         let pipeline = model
             .pipeline()
