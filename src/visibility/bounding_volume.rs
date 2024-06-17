@@ -116,8 +116,7 @@ impl Mul<Aabb> for Quat {
     fn mul(self, rhs: Aabb) -> Self::Output {
         Self::Output {
             rotation: self,
-            min: rhs.min,
-            max: rhs.max,
+            aabb: rhs,
         }
     }
 }
@@ -129,8 +128,10 @@ impl Mul<Aabb> for Affine3A {
         let (scale, rotation, translation) = self.to_scale_rotation_translation();
         Self::Output {
             rotation,
-            min: scale * rhs.min + translation,
-            max: scale * rhs.max + translation,
+            aabb: Aabb {
+                min: scale * rhs.min + translation,
+                max: scale * rhs.max + translation,
+            },
         }
     }
 }
@@ -228,9 +229,9 @@ impl Meshable for Aabb {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Obb {
+    // Rotation gets applied in the local space of Aabb
     pub rotation: Quat,
-    pub min: Vec3,
-    pub max: Vec3,
+    pub aabb: Aabb,
 }
 
 // Translation operations
@@ -251,8 +252,7 @@ impl Add<Vec3> for Obb {
 
     fn add(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min + rhs,
-            max: self.max + rhs,
+            aabb: self.aabb + rhs,
             rotation: self.rotation,
         }
     }
@@ -262,8 +262,7 @@ impl Add<Obb> for Vec3 {
 
     fn add(self, rhs: Obb) -> Self::Output {
         Self::Output {
-            min: self + rhs.min,
-            max: self + rhs.max,
+            aabb: rhs.aabb + self,
             rotation: rhs.rotation,
         }
     }
@@ -274,8 +273,7 @@ impl Sub<Vec3> for Obb {
 
     fn sub(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min - rhs,
-            max: self.max - rhs,
+            aabb: self.aabb - rhs,
             rotation: self.rotation,
         }
     }
@@ -293,8 +291,8 @@ impl Mul<Vec3> for Obb {
 
     fn mul(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min * rhs,
-            max: self.max * rhs,
+            aabb: self.aabb * rhs,
+
             rotation: self.rotation,
         }
     }
@@ -304,8 +302,7 @@ impl Mul<Obb> for Vec3 {
 
     fn mul(self, rhs: Obb) -> Self::Output {
         Self::Output {
-            min: self * rhs.min,
-            max: self * rhs.max,
+            aabb: rhs.aabb * self,
             rotation: rhs.rotation,
         }
     }
@@ -322,8 +319,7 @@ impl Mul<f32> for Obb {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self::Output {
-            min: self.min * rhs,
-            max: self.max * rhs,
+            aabb: self.aabb * rhs,
             rotation: self.rotation,
         }
     }
@@ -333,8 +329,7 @@ impl Mul<Obb> for f32 {
 
     fn mul(self, rhs: Obb) -> Self::Output {
         Self::Output {
-            min: self * rhs.min,
-            max: self * rhs.max,
+            aabb: rhs.aabb * self,
             rotation: rhs.rotation,
         }
     }
@@ -346,8 +341,7 @@ impl Mul<Obb> for Quat {
     fn mul(self, rhs: Obb) -> Self::Output {
         Self::Output {
             rotation: self * rhs.rotation,
-            min: rhs.min,
-            max: rhs.max,
+            aabb: rhs.aabb,
         }
     }
 }
@@ -359,8 +353,7 @@ impl Mul<Obb> for Affine3A {
         let (scale, rotation, translation) = self.to_scale_rotation_translation();
         Self::Output {
             rotation: rotation * rhs.rotation,
-            min: scale * rhs.min + translation,
-            max: scale * rhs.max + translation,
+            aabb: scale * rhs.aabb + translation,
         }
     }
 }
@@ -369,28 +362,29 @@ impl From<Aabb> for Obb {
     fn from(value: Aabb) -> Self {
         Self {
             rotation: Quat::IDENTITY,
-            min: value.min,
-            max: value.max,
+            aabb: value,
         }
     }
 }
 
 impl Obb {
     pub const fn new(rotation: Quat, min: Vec3, max: Vec3) -> Self {
-        Self { rotation, min, max }
+        Self {
+            rotation,
+            aabb: Aabb { min, max },
+        }
     }
     pub fn center(&self) -> Vec3 {
-        let min = self.rotation * self.min;
-        let max = self.rotation * self.min;
-        (min + max) * 0.5
+        self.aabb.center()
     }
 
     pub fn contains(&self, point: Vec3) -> bool {
-        let min = self.rotation * self.min;
-        let max = self.rotation * self.min;
-        point.x >= min.x && point.x <= max.x
-            || point.y >= min.y && point.y <= max.y
-            || point.z >= min.z && point.z <= max.z
+        let center = self.center();
+
+        // Transform point to the obb space
+        let point = self.rotation.inverse() * (point - center);
+
+        self.aabb.contains(point)
     }
 }
 

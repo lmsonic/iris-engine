@@ -1,4 +1,3 @@
-pub mod frustum;
 pub mod intersections;
 pub mod plane;
 pub mod ray;
