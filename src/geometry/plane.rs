@@ -22,14 +22,14 @@ impl Plane {
         Vec4::from(*self)
     }
 
-    pub fn signed_distance_to_point(&self, point: Vec3) -> f32 {
+    pub fn signed_distance_to(&self, point: Vec3) -> f32 {
         let homogeneous = self.homogeneous();
         let point = point.extend(1.0);
         homogeneous.dot(point)
     }
 
     pub fn is_on_plane(&self, point: Vec3) -> bool {
-        abs_diff_eq!(self.signed_distance_to_point(point), 0.0, epsilon = 1e-3)
+        abs_diff_eq!(self.signed_distance_to(point), 0.0, epsilon = 1e-3)
     }
 
     pub fn intersection_with_planes(&self, p1: Self, p2: Self) -> Option<Vec3> {
@@ -162,23 +162,23 @@ mod tests {
     fn _test_distance_to_point(point: Vec3, normal: Vec3) {
         let plane = Plane::new(point, normal);
         assert!(plane.is_on_plane(point));
-        assert_abs_diff_eq!(plane.signed_distance_to_point(point), 0.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(plane.signed_distance_to(point), 0.0, epsilon = 1e-3);
     }
 
     fn _test_intersect_three_planes(p1: Plane, p2: Plane, p3: Plane) {
         if let Some(point) = p1.intersection_with_planes(p2, p3) {
-            assert_abs_diff_eq!(p1.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(p2.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(p3.signed_distance_to_point(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p1.signed_distance_to(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p3.signed_distance_to(point), 0.0, epsilon = 1e-1);
         }
     }
     fn _test_intersect_two_planes(p1: Plane, p2: Plane) {
         if let Some(line) = p1.intersection_with_plane(p2) {
             let end = line.start + line.direction;
-            assert_abs_diff_eq!(p1.signed_distance_to_point(line.start), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(p1.signed_distance_to_point(end), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(p2.signed_distance_to_point(line.start), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(p2.signed_distance_to_point(end), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p1.signed_distance_to(line.start), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p1.signed_distance_to(end), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to(line.start), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(p2.signed_distance_to(end), 0.0, epsilon = 1e-1);
         }
     }
 }

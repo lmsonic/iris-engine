@@ -1,8 +1,10 @@
 #![allow(clippy::module_name_repetitions)]
 
-use glam::{Mat4, Vec3, Vec4};
+use glam::{Mat3, Mat4, Vec3, Vec4};
 
 use crate::geometry::plane::Plane;
+
+use super::bounding_volume::{BoundingSphere, Obb};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frustum {
@@ -15,12 +17,65 @@ pub struct Frustum {
 }
 
 impl Frustum {
+    pub const fn new(
+        near: Plane,
+        far: Plane,
+        left: Plane,
+        right: Plane,
+        bottom: Plane,
+        top: Plane,
+    ) -> Self {
+        Self {
+            near,
+            far: Some(far),
+            left,
+            right,
+            bottom,
+            top,
+        }
+    }
+
     pub fn planes(&self) -> Vec<Plane> {
         let mut planes = vec![self.left, self.right, self.bottom, self.top, self.near];
         if let Some(far) = self.far {
             planes.push(far);
         };
         planes
+    }
+
+    pub fn contains_bounding_sphere(&self, bounding_sphere: BoundingSphere) -> bool {
+        let center = bounding_sphere.center.extend(1.0);
+        for plane in self.planes() {
+            let plane = plane.homogeneous();
+            // Planes point inwards, so if the signed distance is less than -radius,
+            // the sphere is out of frustum
+            if plane.dot(center) < -bounding_sphere.radius {
+                return false;
+            }
+        }
+        true
+    }
+    pub fn contains_bounding_box(&self, bounding_box: impl Into<Obb>) -> bool {
+        let bounding_box = bounding_box.into();
+        self._contains_bounding_box(bounding_box)
+    }
+    fn _contains_bounding_box(&self, bounding_box: Obb) -> bool {
+        let center = bounding_box.center().extend(1.0);
+        let orientation = Mat3::from_quat(bounding_box.rotation);
+        let (r, s, t) = (orientation.x_axis, orientation.y_axis, orientation.z_axis);
+
+        for plane in self.planes() {
+            // TODO : Might not cull boxes with very big difference in axis sizes
+            let normal = plane.normal;
+            let effective_radius =
+                (r.dot(normal).abs() + s.dot(normal).abs() + t.dot(normal).abs()) * 0.5;
+
+            let plane = plane.homogeneous();
+            if plane.dot(center) < -effective_radius {
+                return false;
+            }
+        }
+        true
     }
 }
 
@@ -79,26 +134,6 @@ impl FrustumBuilder {
         Frustum {
             near,
             far,
-            left,
-            right,
-            bottom,
-            top,
-        }
-    }
-}
-
-impl Frustum {
-    pub const fn new(
-        near: Plane,
-        far: Plane,
-        left: Plane,
-        right: Plane,
-        bottom: Plane,
-        top: Plane,
-    ) -> Self {
-        Self {
-            near,
-            far: Some(far),
             left,
             right,
             bottom,

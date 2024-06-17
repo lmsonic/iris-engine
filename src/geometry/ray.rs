@@ -1,6 +1,15 @@
 use approx::abs_diff_eq;
 use glam::{Mat2, Vec2, Vec3};
 
+use super::{
+    intersections::{
+        ray_intersect_cuboid, ray_intersect_cylinder, ray_intersect_ellipsoid, ray_intersect_plane,
+        ray_intersect_sphere, ray_intersect_triangle,
+    },
+    plane::Plane,
+    shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Triangle},
+};
+
 #[derive(Clone, Copy, Debug)]
 pub struct Ray {
     pub start: Vec3,
@@ -60,6 +69,24 @@ impl Ray {
             let t = inverse * constants;
             (t.x, t.y)
         }
+    }
+    pub fn intersect_plane(&self, plane: Plane) -> Option<Vec3> {
+        ray_intersect_plane(*self, plane)
+    }
+    pub fn intersect_triangle(&self, triangle: Triangle) -> Option<Vec3> {
+        ray_intersect_triangle(*self, triangle)
+    }
+    pub fn intersect_cuboid(&self, cuboid: Cuboid) -> Option<Vec3> {
+        ray_intersect_cuboid(*self, cuboid)
+    }
+    pub fn intersect_sphere(&self, sphere: Sphere) -> Option<Vec3> {
+        ray_intersect_sphere(*self, sphere)
+    }
+    pub fn intersect_ellipsoid(&self, ellipsoid: Ellipsoid) -> Option<Vec3> {
+        ray_intersect_ellipsoid(*self, ellipsoid)
+    }
+    pub fn intersect_cylinder(&self, cylinder: Cylinder) -> Option<Vec3> {
+        ray_intersect_cylinder(*self, cylinder)
     }
 }
 
