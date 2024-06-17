@@ -18,7 +18,7 @@ use super::{
 };
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, PartialEq)]
 pub struct Instance {
     pub x_axis: Vec4,
     pub y_axis: Vec4,

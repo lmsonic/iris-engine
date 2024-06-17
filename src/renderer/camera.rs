@@ -7,7 +7,11 @@ use winit::{
     event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
 };
 
-use crate::{geometry::plane::Plane, visibility::frustum::Frustum, GpuSendable};
+use crate::{
+    geometry::plane::Plane,
+    visibility::frustum::{Frustum, FrustumBuilder},
+    GpuSendable,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbitCamera {
@@ -106,8 +110,8 @@ impl OrbitCamera {
         false
     }
 
-    pub const fn camera(&self) -> PerspectiveCamera {
-        self.camera
+    pub fn frustum(&self) -> Frustum {
+        FrustumBuilder::new(self.view() * self.camera.matrix_rh()).build()
     }
 }
 #[derive(Clone, Copy, Debug)]

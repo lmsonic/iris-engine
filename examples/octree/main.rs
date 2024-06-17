@@ -170,7 +170,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn render(&mut self, view: &wgpu::TextureView, r: &mut Renderer) {
-        let frustum = self.camera_uniform.data.camera().frustum(false, false);
+        let frustum = self.camera_uniform.data.frustum();
         let instanced_models: Vec<InstancedModel> = self
             .instances
             .vertices
@@ -184,7 +184,6 @@ impl iris_engine::renderer::app::App for Example {
         dbg!(instanced_models.len());
         let octree = Octree::new(&instanced_models, 2);
         let mut models = octree.visible_models(frustum);
-        models.dedup_by(|a, b| ptr::addr_eq(a, b));
         let visible_instances: Vec<Instance> = models
             .iter()
             .map(|m| Instance::new(Mat4::from(m.transform)))
@@ -208,11 +207,11 @@ impl iris_engine::renderer::app::App for Example {
                 wgpu::IndexFormat::Uint32,
             );
             rpass.set_vertex_buffer(0, self.vertex_buffer.buffer.slice(..));
-            rpass.set_vertex_buffer(1, self.instances.buffer.slice(..));
+            rpass.set_vertex_buffer(1, visible_buffer.buffer.slice(..));
             rpass.draw_indexed(
                 0..self.index_buffer.indices.len() as u32,
                 0,
-                0..self.instances.vertices.len() as u32,
+                0..visible_buffer.vertices.len() as u32,
             );
             if let Some(ref pipe) = self.pipeline_wire {
                 rpass.set_pipeline(pipe);

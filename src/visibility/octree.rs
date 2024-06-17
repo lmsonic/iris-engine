@@ -55,7 +55,6 @@ impl<'a> Octant<'a> {
     pub fn new(mut models: Vec<&'a InstancedModel>, aabb: Aabb, depth: usize) -> Self {
         let children_aabb = split_aabb_in_8(aabb);
         let mut children: [Option<Box<Octant>>; 8] = Default::default();
-        models.dedup();
         for (i, child_aabb) in children_aabb.into_iter().enumerate() {
             let mut children_models = vec![];
 
@@ -88,18 +87,15 @@ impl<'a> Octant<'a> {
         if depth == 0 {
             // Leaf node
             visible_models.extend_from_slice(&self.models);
-            visible_models.dedup();
-            println!(" {} visible models at depth {depth} ", visible_models.len());
             return visible_models;
         }
         if frustum.contains_bounding_box(self.aabb) {
             for child in self.children.iter().flatten() {
                 if frustum.contains_bounding_box(child.aabb) {
                     visible_models.append(&mut child.visible_models(frustum, depth - 1));
-                    visible_models.dedup();
+                    println!(" {} visible models at depth {depth} ", visible_models.len());
                 }
             }
-            println!(" {} visible models at depth {depth} ", visible_models.len());
         }
         visible_models
     }
