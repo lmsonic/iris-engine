@@ -1,10 +1,10 @@
 #![allow(clippy::module_name_repetitions)]
 
-use glam::{Mat3, Mat4};
+use glam::{Mat3A, Mat4, Vec3A};
 
 use crate::geometry::plane::Plane;
 
-use super::bounding_volume::{BoundingSphere, Obb};
+use super::bounding_volume::{Aabb, BoundingSphere, Obb};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frustum {
@@ -55,18 +55,35 @@ impl Frustum {
         }
         true
     }
-    pub fn contains_bounding_box(&self, bounding_box: impl Into<Obb>) -> bool {
-        let bounding_box = bounding_box.into();
-        self._contains_bounding_box(bounding_box)
-    }
-    fn _contains_bounding_box(&self, bounding_box: Obb) -> bool {
-        let center = bounding_box.center().extend(1.0);
-        let orientation = Mat3::from_quat(bounding_box.rotation);
-        let (r, s, t) = (orientation.x_axis, orientation.y_axis, orientation.z_axis);
+    pub fn contains_bounding_box(&self, bounding_box: Aabb) -> bool {
+        let center = bounding_box.center.extend(1.0);
+        let size: Vec3A = bounding_box.size.into();
 
         for plane in self.planes() {
             // TODO : Might not cull boxes with very big difference in axis sizes
-            let normal = plane.normal;
+            let normal: Vec3A = plane.normal.into();
+            let effective_radius = (normal * size).abs().element_sum();
+
+            let plane = plane.homogeneous();
+            if plane.dot(center) < -effective_radius {
+                return false;
+            }
+        }
+        true
+    }
+    pub fn contains_oriented_bounding_box(&self, bounding_box: Obb) -> bool {
+        let center = bounding_box.center().extend(1.0);
+        let size = bounding_box.size();
+        let orientation = Mat3A::from_quat(bounding_box.rotation);
+        let (r, s, t) = (
+            orientation.x_axis * size.x,
+            orientation.y_axis * size.y,
+            orientation.z_axis * size.z,
+        );
+
+        for plane in self.planes() {
+            // TODO : Might not cull boxes with very big difference in axis sizes
+            let normal = plane.normal.into();
             let effective_radius =
                 (r.dot(normal).abs() + s.dot(normal).abs() + t.dot(normal).abs()) * 0.5;
 

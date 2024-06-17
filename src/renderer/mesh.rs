@@ -3,6 +3,8 @@ use std::{fmt::Debug, path::Path};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
 
+use crate::visibility::bounding_volume::Aabb;
+
 use super::resources::{load_geometry, VertexAttributeLayout};
 
 pub trait Meshable {
@@ -113,6 +115,11 @@ impl Mesh {
         for v in &mut self.vertices {
             v.normal = v.normal.normalize_or_zero();
         }
+    }
+
+    pub fn calculate_bounding_box(&self) -> Aabb {
+        let points: Vec<Vec3> = self.vertices.iter().map(|v| v.position).collect();
+        Aabb::from_points(&points)
     }
 
     pub fn vertices(&self) -> Vec<Vertex> {

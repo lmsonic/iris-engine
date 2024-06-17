@@ -6,8 +6,8 @@ use crate::renderer::mesh::{Mesh, Meshable, Vertex};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Aabb {
-    pub min: Vec3,
-    pub max: Vec3,
+    pub center: Vec3,
+    pub size: Vec3,
 }
 
 // Translation operations
@@ -28,8 +28,8 @@ impl Add<Vec3> for Aabb {
 
     fn add(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min + rhs,
-            max: self.max + rhs,
+            center: self.center + rhs,
+            size: self.size,
         }
     }
 }
@@ -38,8 +38,8 @@ impl Add<Aabb> for Vec3 {
 
     fn add(self, rhs: Aabb) -> Self::Output {
         Self::Output {
-            min: self + rhs.min,
-            max: self + rhs.max,
+            center: rhs.center + self,
+            size: rhs.size,
         }
     }
 }
@@ -49,8 +49,8 @@ impl Sub<Vec3> for Aabb {
 
     fn sub(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min - rhs,
-            max: self.max - rhs,
+            center: self.center - rhs,
+            size: self.size,
         }
     }
 }
@@ -67,8 +67,8 @@ impl Mul<Vec3> for Aabb {
 
     fn mul(self, rhs: Vec3) -> Self::Output {
         Self::Output {
-            min: self.min * rhs,
-            max: self.max * rhs,
+            center: self.center,
+            size: self.size * rhs,
         }
     }
 }
@@ -77,8 +77,8 @@ impl Mul<Aabb> for Vec3 {
 
     fn mul(self, rhs: Aabb) -> Self::Output {
         Self::Output {
-            min: self * rhs.min,
-            max: self * rhs.max,
+            center: rhs.center,
+            size: rhs.size * self,
         }
     }
 }
@@ -94,8 +94,8 @@ impl Mul<f32> for Aabb {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self::Output {
-            min: self.min * rhs,
-            max: self.max * rhs,
+            center: self.center,
+            size: self.size * rhs,
         }
     }
 }
@@ -104,8 +104,8 @@ impl Mul<Aabb> for f32 {
 
     fn mul(self, rhs: Aabb) -> Self::Output {
         Self::Output {
-            min: self * rhs.min,
-            max: self * rhs.max,
+            center: rhs.center,
+            size: rhs.size * self,
         }
     }
 }
@@ -129,25 +129,53 @@ impl Mul<Aabb> for Affine3A {
         Self::Output {
             rotation,
             aabb: Aabb {
-                min: scale * rhs.min + translation,
-                max: scale * rhs.max + translation,
+                center: rhs.center + translation,
+                size: rhs.size * scale,
             },
         }
     }
 }
 
 impl Aabb {
-    pub const fn new(min: Vec3, max: Vec3) -> Self {
-        Self { min, max }
+    pub const fn new(center: Vec3, size: Vec3) -> Self {
+        Self { center, size }
     }
-    pub fn center(&self) -> Vec3 {
-        (self.min + self.max) * 0.5
+    pub fn from_min_max(min: Vec3, max: Vec3) -> Self {
+        let center = (max + min) * 0.5;
+        let size = max - min;
+        Self { center, size }
+    }
+    pub fn min(&self) -> Vec3 {
+        self.center - self.size * 0.5
+    }
+    pub fn max(&self) -> Vec3 {
+        self.center + self.size * 0.5
     }
 
     pub fn contains(&self, point: Vec3) -> bool {
-        point.x >= self.min.x && point.x <= self.max.x
-            || point.y >= self.min.y && point.y <= self.max.y
-            || point.z >= self.min.z && point.z <= self.max.z
+        let min = self.min();
+        let max = self.max();
+        point.x >= min.x && point.x <= max.x
+            || point.y >= min.y && point.y <= max.y
+            || point.z >= min.z && point.z <= max.z
+    }
+    pub fn contains_obb(&self, other: Obb) -> bool {
+        let other_min = other.min();
+        let other_max = other.max();
+        let min = self.min();
+        let max = self.max();
+        other_min.x >= min.x && other_max.x <= max.x
+            || other_min.y >= min.y && other_max.y <= max.y
+            || other_min.z >= min.z && other_max.z <= max.z
+    }
+    pub fn contains_aabb(&self, other: Self) -> bool {
+        let other_min = other.min();
+        let other_max = other.max();
+        let min = self.min();
+        let max = self.max();
+        other_min.x >= min.x && other_max.x <= max.x
+            || other_min.y >= min.y && other_max.y <= max.y
+            || other_min.z >= min.z && other_max.z <= max.z
     }
     pub fn from_points(points: &[Vec3]) -> Self {
         // Transform all points by rotation
@@ -158,18 +186,17 @@ impl Aabb {
 
         let (min, max) = points
             .iter()
-            .copied()
             .fold((*first, *first), |(prev_min, prev_max), point| {
                 (point.min(prev_min), point.max(prev_max))
             });
 
-        Self { min, max }
+        Self::from_min_max(min, max)
     }
 }
 impl Meshable for Aabb {
     fn mesh(&self) -> Mesh {
-        let min = self.min;
-        let max = self.max;
+        let min = self.min();
+        let max = self.max();
 
         // Suppose Y-up right hand, and camera look from +Z to -Z
         let vertices = &[
@@ -368,19 +395,29 @@ impl From<Aabb> for Obb {
 }
 
 impl Obb {
-    pub const fn new(rotation: Quat, min: Vec3, max: Vec3) -> Self {
+    pub const fn new(rotation: Quat, center: Vec3, size: Vec3) -> Self {
         Self {
             rotation,
-            aabb: Aabb { min, max },
+            aabb: Aabb { center, size },
         }
     }
-    pub fn center(&self) -> Vec3 {
-        self.aabb.center()
+    pub const fn center(&self) -> Vec3 {
+        self.aabb.center
+    }
+
+    pub const fn size(&self) -> Vec3 {
+        self.aabb.size
+    }
+
+    pub fn min(&self) -> Vec3 {
+        self.aabb.min()
+    }
+    pub fn max(&self) -> Vec3 {
+        self.aabb.max()
     }
 
     pub fn contains(&self, point: Vec3) -> bool {
         let center = self.center();
-
         // Transform point to the obb space
         let point = self.rotation.inverse() * (point - center);
 

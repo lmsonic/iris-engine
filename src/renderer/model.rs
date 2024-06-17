@@ -1,6 +1,8 @@
 use egui::Ui;
 use glam::{Affine3A, Mat4};
 
+use crate::visibility::bounding_volume::{Aabb, Obb};
+
 use super::{
     bind_group::{BindGroup, BindGroupBuilder},
     buffer::UniformBuffer,
@@ -18,6 +20,7 @@ pub struct Model {
     material: Box<dyn for<'a> Material<'a>>,
     transform_uniform: UniformBuffer<Mat4>,
     transform_bind_group: BindGroup,
+    bounding_box: Aabb,
 }
 
 impl Model {
@@ -31,12 +34,14 @@ impl Model {
         let transform_bind_group = BindGroupBuilder::new()
             .uniform(&transform_uniform.buffer)
             .build(device);
+        let bounding_box = mesh.calculate_bounding_box();
         Self {
             transform,
             mesh,
             material: Box::new(material),
             transform_uniform,
             transform_bind_group,
+            bounding_box,
         }
     }
 
@@ -68,6 +73,7 @@ impl Model {
 
     pub fn set_mesh(&mut self, mesh: Mesh) {
         self.mesh = mesh;
+        self.bounding_box = self.mesh.calculate_bounding_box();
     }
 
     pub fn set_material<M: for<'a> Material<'a> + 'static>(&mut self, material: M) {
@@ -88,5 +94,9 @@ impl Model {
 
     pub fn material(&self) -> &dyn Material {
         self.material.as_ref()
+    }
+
+    pub fn bounding_box(&self) -> Obb {
+        self.transform * self.bounding_box
     }
 }
