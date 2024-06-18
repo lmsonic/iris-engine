@@ -3,7 +3,7 @@ use std::{fmt::Debug, path::Path};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
 
-use crate::visibility::bounding_volume::Aabb;
+use crate::visibility::bounding_volume::aabb::Aabb;
 
 use super::resources::{load_geometry, VertexAttributeLayout};
 

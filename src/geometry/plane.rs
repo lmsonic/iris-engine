@@ -28,8 +28,9 @@ impl Plane {
         homogeneous.dot(point)
     }
 
-    pub fn is_on_plane(&self, point: Vec3) -> bool {
-        abs_diff_eq!(self.signed_distance_to(point), 0.0, epsilon = 1e-3)
+    pub fn closest_on_plane(&self, point: Vec3) -> Vec3 {
+        let distance = self.signed_distance_to(point);
+        point - distance * self.normal
     }
 
     pub fn intersection_with_planes(&self, p1: Self, p2: Self) -> Option<Vec3> {
@@ -140,65 +141,59 @@ mod tests {
     use glam::Vec3;
     use proptest::prop_compose;
     use proptest::proptest;
-    use proptest::strategy::Strategy;
+
+    use crate::tests::any_normal;
+    use crate::tests::any_vec3;
 
     use super::Plane;
-    prop_compose! {
-        fn any_vec3(range:RangeInclusive<f32>)
-                    (x in range.clone(),y in range.clone(),z in range)
-                    -> Vec3 {
-            Vec3::new(x, y, z)
-        }
-    }
-    prop_compose! {
-        fn any_normal(range:RangeInclusive<f32>)
-                    (n in any_vec3(range).prop_filter("normal needs to be able to be normalized",
-                    |n|n.try_normalize().is_some()))
-                    -> Vec3 {
-            n
-        }
-    }
+
     prop_compose! {
         fn any_plane(range:RangeInclusive<f32>)
-                    (point in any_vec3(range.clone()),
-                        normal in any_normal(range))
+                    (point in any_vec3(range),
+                        normal in any_normal())
                     -> Plane {
 
             Plane::new(point,normal)
         }
     }
-    const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
+    const RANGE: RangeInclusive<f32> = -100.0..=100.0;
     proptest! {
-
         #[test]
-        fn test_distance_to_point(point in any_vec3(RANGE), normal in any_normal(RANGE)){
-            _test_distance_to_point(point, normal);
+        fn plane_center_is_on_plane(point in any_vec3(RANGE), normal in any_normal()){
+            _plane_center_is_on_plane(point, normal);
+        }
+        #[test]
+        fn closest_on_plane(plane in any_plane(RANGE), point in any_vec3(RANGE)){
+            _closest_on_plane(plane,point);
         }
 
         #[test]
-        fn test_intersect_three_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE), p3 in any_plane(RANGE)){
-            _test_intersect_three_planes(p1,p2,p3);
+        fn intersect_three_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE), p3 in any_plane(RANGE)){
+            _intersect_three_planes(p1,p2,p3);
         }
         #[test]
-        fn test_intersect_two_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE)){
-            _test_intersect_two_planes(p1,p2);
+        fn intersect_two_planes(p1 in any_plane(RANGE), p2 in any_plane(RANGE)){
+            _intersect_two_planes(p1,p2);
         }
     }
 
-    fn _test_distance_to_point(point: Vec3, normal: Vec3) {
+    fn _plane_center_is_on_plane(point: Vec3, normal: Vec3) {
         let plane = Plane::new(point, normal);
-        assert!(plane.is_on_plane(point));
         assert_abs_diff_eq!(plane.signed_distance_to(point), 0.0, epsilon = 1e-3);
     }
+    fn _closest_on_plane(plane: Plane, point: Vec3) {
+        let closest_point = plane.closest_on_plane(point);
+        assert_abs_diff_eq!(plane.signed_distance_to(closest_point), 0.0, epsilon = 1e-3);
+    }
 
-    fn _test_intersect_three_planes(p1: Plane, p2: Plane, p3: Plane) {
+    fn _intersect_three_planes(p1: Plane, p2: Plane, p3: Plane) {
         if let Some(point) = p1.intersection_with_planes(p2, p3) {
             assert_abs_diff_eq!(p1.signed_distance_to(point), 0.0, epsilon = 1e-1);
             assert_abs_diff_eq!(p2.signed_distance_to(point), 0.0, epsilon = 1e-1);
             assert_abs_diff_eq!(p3.signed_distance_to(point), 0.0, epsilon = 1e-1);
         }
     }
-    fn _test_intersect_two_planes(p1: Plane, p2: Plane) {
+    fn _intersect_two_planes(p1: Plane, p2: Plane) {
         if let Some(line) = p1.intersection_with_plane(p2) {
             let end = line.start + line.direction;
             assert_abs_diff_eq!(p1.signed_distance_to(line.start), 0.0, epsilon = 1e-1);

@@ -4,7 +4,7 @@ use glam::{Mat3A, Mat4, Vec3A};
 
 use crate::geometry::plane::Plane;
 
-use super::bounding_volume::{Aabb, BoundingSphere, Obb};
+use super::bounding_volume::{aabb::Aabb, bounding_sphere::BoundingSphere, obb::Obb};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frustum {
@@ -43,7 +43,7 @@ impl Frustum {
         planes
     }
 
-    pub fn contains_bounding_sphere(&self, bounding_sphere: BoundingSphere) -> bool {
+    pub fn intersect_bounding_sphere(&self, bounding_sphere: BoundingSphere) -> bool {
         let center = bounding_sphere.center.extend(1.0);
         for plane in self.planes() {
             let plane = plane.homogeneous();
@@ -55,7 +55,7 @@ impl Frustum {
         }
         true
     }
-    pub fn contains_bounding_box(&self, bounding_box: Aabb) -> bool {
+    pub fn intersect_bounding_box(&self, bounding_box: Aabb) -> bool {
         let center = bounding_box.center.extend(1.0);
         let size: Vec3A = bounding_box.size.into();
 
@@ -71,7 +71,7 @@ impl Frustum {
         }
         true
     }
-    pub fn contains_oriented_bounding_box(&self, bounding_box: Obb) -> bool {
+    pub fn intersect_oriented_bounding_box(&self, bounding_box: Obb) -> bool {
         let center = bounding_box.center().extend(1.0);
         let size = bounding_box.size();
         let orientation = Mat3A::from_quat(bounding_box.rotation);
@@ -188,7 +188,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_orthographic_frustum(
+        fn orthographic_frustum(
             size in 0.1..100.0_f32,
             aspect_ratio in 0.1..3.0_f32,
             near in 0.1..1000.0_f32,
@@ -196,10 +196,10 @@ mod tests {
             projection in projection_type_strategy(),
         ) {
             prop_assume!(near < far);
-            _test_orthographic_frustum(size, aspect_ratio, near, far, projection);
+            _orthographic_frustum(size, aspect_ratio, near, far, projection);
         }
         #[test]
-        fn test_perspective_frustum(
+        fn perspective_frustum(
             fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
             aspect_ratio in 0.1..3.0_f32,
             near in 0.1..100.0_f32,
@@ -207,28 +207,28 @@ mod tests {
             projection in projection_type_strategy(),
         ) {
             prop_assume!(near < far);
-            _test_perspective_frustum(fov_y, aspect_ratio, near, far, projection);
+            _perspective_frustum(fov_y, aspect_ratio, near, far, projection);
         }
         #[test]
-        fn test_perspective_infinite_frustum(
+        fn perspective_infinite_frustum(
             fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
             aspect_ratio in 0.1..3.0_f32,
             near in 0.1..1000.0_f32,
             projection in projection_type_strategy(),
         ) {
-            _test_perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
+            _perspective_infinite_frustum(fov_y, aspect_ratio, near, projection);
         }
         #[test]
-        fn test_perspective_infinite_reverse_frustum(
+        fn perspective_infinite_reverse_frustum(
             fov_y in f32::to_radians(10.0)..f32::to_radians(180.0),
             aspect_ratio in 0.1..3.0_f32,
             near in 0.1..1000.0_f32,
             projection in projection_type_strategy(),
         ) {
-            _test_perspective_infinite_reverse_frustum(fov_y, aspect_ratio, near, projection);
+            _perspective_infinite_reverse_frustum(fov_y, aspect_ratio, near, projection);
         }
     }
-    fn _test_orthographic_frustum(
+    fn _orthographic_frustum(
         size: f32,
         aspect_ratio: f32,
         near: f32,
@@ -263,7 +263,7 @@ mod tests {
             }
         }
     }
-    fn _test_perspective_frustum(
+    fn _perspective_frustum(
         fov_y: f32,
         aspect_ratio: f32,
         near: f32,
@@ -297,7 +297,7 @@ mod tests {
         }
     }
 
-    fn _test_perspective_infinite_frustum(
+    fn _perspective_infinite_frustum(
         fov_y: f32,
         aspect_ratio: f32,
         near: f32,
@@ -334,7 +334,7 @@ mod tests {
         assert!(frustum.far.is_none());
     }
 
-    fn _test_perspective_infinite_reverse_frustum(
+    fn _perspective_infinite_reverse_frustum(
         fov_y: f32,
         aspect_ratio: f32,
         near: f32,
@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_near_plane_clipping() {
+    fn near_plane_clipping() {
         let perspective = PerspectiveCamera::new(f32::to_radians(70.0), 1.2, 0.1, 100.0);
 
         let clip_plane: Plane = Vec4::new(1.0, 0.0, -1.0, -1.0).into();

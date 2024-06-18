@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a7e4b45d1387afac9d85b91df42cc280d3ad90e2a3c49d2452c094743bd11831 # shrinks to plane = Plane { normal: Vec3(0.0, 0.0, -1.0), distance: -0.0 }, point = Vec3(0.0, 0.0, 9.027558)

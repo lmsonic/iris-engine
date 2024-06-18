@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use egui::Ui;
 use glam::{Affine3A, Mat4, Vec4};
 
-use crate::visibility::bounding_volume::{Aabb, Obb};
+use crate::visibility::bounding_volume::{aabb::Aabb, obb::Obb};
 
 use super::{
     bind_group::{BindGroup, BindGroupBuilder},

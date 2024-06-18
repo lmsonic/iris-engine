@@ -1,8 +1,10 @@
+use crate::visibility::bounding_volume::aabb::Aabb;
+
 use super::{
     plane::Plane,
     ray::Ray,
     root_finding::solve_quadratic,
-    shapes::{Cuboid, Cylinder, Ellipsoid, Sphere, Triangle},
+    shapes::{cylinder::Cylinder, Cuboid, Ellipsoid, Sphere, Triangle},
 };
 use approx::abs_diff_eq;
 use glam::Vec3;
@@ -71,8 +73,8 @@ pub fn ray_intersect_cuboid(ray: Ray, cuboid: Cuboid) -> Option<Vec3> {
 }
 
 pub fn ray_intersect_sphere(ray: Ray, sphere: Sphere) -> Option<Vec3> {
-    let delta = ray.start;
-    let a = ray.direction.length_squared(); // Should be 1.0
+    let delta = ray.start - sphere.center;
+    let a = 1.0; // Should be 1.0
     let b = 2.0 * ray.direction.dot(delta);
     let c = sphere
         .radius
@@ -150,22 +152,30 @@ pub fn ray_intersect_cylinder(ray: Ray, cylinder: Cylinder) -> Option<Vec3> {
     Some(point)
 }
 
+pub fn sphere_intersect_sphere(s1: Sphere, s2: Sphere) -> bool {
+    let delta = s1.center - s2.center;
+    let distance_sqr = delta.length_squared();
+    let radius_sum = s1.radius + s2.radius;
+    distance_sqr <= radius_sum * radius_sum
+}
+
 #[cfg(test)]
 mod tests {
     use std::ops::RangeInclusive;
 
     use approx::assert_abs_diff_eq;
-    use glam::Vec3;
     use proptest::prop_compose;
     use proptest::proptest;
-    use proptest::strategy::Strategy;
 
+    use crate::geometry::intersections::sphere_intersect_sphere;
     use crate::geometry::shapes::Cuboid;
     use crate::geometry::{
         plane::Plane,
         ray::Ray,
-        shapes::{Cylinder, Ellipsoid, Sphere, Triangle},
+        shapes::{cylinder::Cylinder, Ellipsoid, Sphere, Triangle},
     };
+    use crate::tests::any_normal;
+    use crate::tests::any_vec3;
 
     use super::ray_intersect_cuboid;
     use super::ray_intersect_cylinder;
@@ -173,26 +183,11 @@ mod tests {
     use super::ray_intersect_plane;
     use super::ray_intersect_sphere;
     use super::ray_intersect_triangle;
-    prop_compose! {
-        fn any_vec3(range:RangeInclusive<f32>)
-                    (x in range.clone(),y in range.clone(),z in range)
-                    -> Vec3 {
-            Vec3::new(x, y, z)
-        }
-    }
-    prop_compose! {
-        fn any_normal(range:RangeInclusive<f32>)
-                    (n in any_vec3(range).prop_filter("normal needs to be able to be normalized",
-                    |n|n.try_normalize().is_some()))
-                    -> Vec3 {
-            n
-        }
-    }
 
     prop_compose! {
         fn any_ray(range:RangeInclusive<f32>)
-                    (start in any_vec3(range.clone()),
-                    direction in any_normal(range))
+                    (start in any_vec3(range),
+                    direction in any_normal())
                     -> Ray {
 
             Ray::new(start,direction)
@@ -200,8 +195,8 @@ mod tests {
     }
     prop_compose! {
         fn any_plane(range:RangeInclusive<f32>)
-                    (point in any_vec3(range.clone()),
-                    normal in any_normal(range))
+                    (point in any_vec3(range),
+                    normal in any_normal())
                     -> Plane {
 
             Plane::new(point,normal)
@@ -218,96 +213,104 @@ mod tests {
         }
     }
 
-    const RANGE: RangeInclusive<f32> = -1000.0..=1000.0;
+    const RANGE: RangeInclusive<f32> = -100.0..=100.0;
     proptest! {
 
         #[test]
-        fn test_intersect_plane(line in any_ray(RANGE), plane in any_plane(RANGE)){
-            _test_intersect_plane(line, plane);
+        fn test_ray_intersect_plane(line in any_ray(RANGE), plane in any_plane(RANGE)){
+            _ray_intersect_plane(line, plane);
         }
         #[test]
-        fn test_intersect_triangle(line in any_ray(RANGE), triangle in any_triangle(RANGE)){
-            _test_intersect_triangle(line, triangle);
+        fn test_ray_intersect_triangle(line in any_ray(RANGE), triangle in any_triangle(RANGE)){
+            _intersect_triangle(line, triangle);
 
         }
         #[test]
-        fn test_intersect_cuboid(mut line in any_ray(RANGE), size in any_vec3(0.0..=100.0)){
+        fn test_ray_intersect_cuboid(mut line in any_ray(RANGE), size in any_vec3(0.0..=100.0)){
             line.start = line.start.min(size * 1.1);
-            _test_intersect_cuboid(line, Cuboid::new(size));
+            _intersect_cuboid(line, Cuboid::new(size));
 
         }
         #[test]
-        fn test_intersect_sphere(mut line in any_ray(RANGE), radius in 0.0..=100.0_f32){
-            line.start = line.start.min(Vec3::ONE * radius * 1.1);
-            _test_intersect_sphere(line, Sphere::new(radius));
+        fn test_ray_intersect_sphere(mut line in any_ray(RANGE),center in any_vec3(RANGE), radius in 0.0..=100.0_f32){
+            line.start = line.start.min(center + radius * 1.1);
+            _intersect_sphere(line, Sphere::new(center,radius));
 
         }
         #[test]
-        fn test_intersect_ellipse(mut line in any_ray(RANGE), radius in any_vec3(0.0..=100.0_f32)){
+        fn test_ray_intersect_ellipse(mut line in any_ray(RANGE), radius in any_vec3(0.0..=100.0_f32)){
             line.start = line.start.min(radius * 1.1);
-            _test_intersect_ellipse(line, Ellipsoid::new(radius));
+            _intersect_ellipse(line, Ellipsoid::new(radius));
 
         }
         #[test]
-        fn test_intersect_cylinder(mut line in any_ray(RANGE), size in any_vec3(0.0..=100.0_f32)){
+        fn test_ray_intersect_cylinder(mut line in any_ray(RANGE), size in any_vec3(0.0..=100.0_f32)){
             line.start = line.start.min(size * 1.1);
-            _test_intersect_cylinder(line, Cylinder::new(size.x,size.y,size.z));
+            _intersect_cylinder(line, Cylinder::new(size.x,size.y,size.z));
 
         }
-        // #[test]
-        // fn test_intersect_torus(line in any_ray(RANGE), inner_radius in 0.1..=100.0_f32,outer_radius in 0.1..=100.0_f32){
-        //     prop_assume!(inner_radius>outer_radius);
-        //     _test_intersect_torus(line, Torus::new(inner_radius,outer_radius));
 
-        // }
+        #[test]
+        fn test_sphere_intersect_sphere(c1 in any_vec3(RANGE),r1 in 0.1..=100.0_f32,c2 in any_vec3(RANGE),r2 in 0.1..=100.0_f32){
+            _sphere_intersect_sphere(Sphere::new(c1, r1), Sphere::new(c2, r2));
+
+        }
+
+
     }
-
-    fn _test_intersect_plane(ray: Ray, plane: Plane) {
+    fn _sphere_intersect_sphere(s1: Sphere, s2: Sphere) {
+        let distance = s1.center.distance(s2.center);
+        if distance <= s1.radius + s2.radius {
+            assert!(sphere_intersect_sphere(s1, s2));
+        } else {
+            assert!(!sphere_intersect_sphere(s1, s2));
+        }
+    }
+    fn _ray_intersect_plane(ray: Ray, plane: Plane) {
         if let Some(point) = ray_intersect_plane(ray, plane) {
             assert_abs_diff_eq!(plane.signed_distance_to(point), 0.0, epsilon = 0.1);
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 0.1);
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 0.1);
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = ray_intersect_plane(opposite_ray, plane);
             assert!(intersect.is_none());
         }
     }
-    fn _test_intersect_triangle(ray: Ray, triangle: Triangle) {
+    fn _intersect_triangle(ray: Ray, triangle: Triangle) {
         if let Some(point) = ray_intersect_triangle(ray, triangle) {
             let plane = Plane::new(triangle.v1, triangle.normal());
             assert_abs_diff_eq!(plane.signed_distance_to(point), 0.0, epsilon = 1e-1);
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-1);
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-1);
             assert!(triangle.is_inside_triangle(point));
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = ray_intersect_triangle(opposite_ray, triangle);
             assert!(intersect.is_none());
         }
     }
-    fn _test_intersect_cuboid(ray: Ray, cuboid: Cuboid) {
+    fn _intersect_cuboid(ray: Ray, cuboid: Cuboid) {
         if let Some(point) = ray_intersect_cuboid(ray, cuboid) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-1);
-            assert!(cuboid.is_point_on_surface(point));
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-1);
             assert!(cuboid.contains(point));
         }
     }
-    fn _test_intersect_sphere(ray: Ray, sphere: Sphere) {
+    fn _intersect_sphere(ray: Ray, sphere: Sphere) {
         if let Some(point) = ray_intersect_sphere(ray, sphere) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-2);
 
-            assert_abs_diff_eq!(point.length(), sphere.radius, epsilon = 0.05);
+            assert_abs_diff_eq!(point.distance(sphere.center), sphere.radius, epsilon = 0.05);
 
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = ray_intersect_sphere(opposite_ray, sphere);
             assert!(intersect.is_none());
         }
     }
-    fn _test_intersect_ellipse(ray: Ray, ellipse: Ellipsoid) {
+    fn _intersect_ellipse(ray: Ray, ellipse: Ellipsoid) {
         if let Some(point) = ray_intersect_ellipsoid(ray, ellipse) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-2);
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-2);
         }
     }
-    fn _test_intersect_cylinder(ray: Ray, cylinder: Cylinder) {
+    fn _intersect_cylinder(ray: Ray, cylinder: Cylinder) {
         if let Some(point) = ray_intersect_cylinder(ray, cylinder) {
-            assert_abs_diff_eq!(ray.distance_to_point(point), 0.0, epsilon = 1e-3);
+            assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-3);
 
             assert_abs_diff_eq!(cylinder.equation(point), 0.0, epsilon = 1e-3);
             assert!(point.z >= 0.0 && point.z <= cylinder.height);

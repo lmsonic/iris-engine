@@ -111,7 +111,8 @@ impl OrbitCamera {
     }
 
     pub fn frustum(&self) -> Frustum {
-        FrustumBuilder::new(self.view() * self.camera.matrix_rh()).build()
+        // TODO: align frustum with view
+        self.camera.frustum(false, false)
     }
 }
 #[derive(Clone, Copy, Debug)]

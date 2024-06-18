@@ -1,4 +1,4 @@
-use std::{ptr, rc::Rc};
+use std::rc::Rc;
 
 use glam::{Affine3A, Mat4, Vec3};
 use iris_engine::{
@@ -17,8 +17,9 @@ use iris_engine::{
         texture::Texture,
         wgpu_renderer::Renderer,
     },
-    visibility::octree::{self, Octree},
+    visibility::octree::Octree,
 };
+use itertools::Itertools;
 
 struct Example {
     vertex_buffer: VertexBuffer<Vertex>,
@@ -64,7 +65,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn init(r: &mut Renderer) -> Self {
-        let sphere = Sphere::new(0.1).mesh();
+        let sphere = Sphere::new(Vec3::ZERO, 0.1).mesh();
         let vertices = sphere.vertices();
         let indices = sphere.indices();
         let vertex_buffer = VertexBuffer::new(vertices, &r.device);
@@ -117,12 +118,8 @@ impl iris_engine::renderer::app::App for Example {
             g: 0.2,
             b: 0.3,
         };
-        const NUM_INSTANCES_PER_ROW: i32 = 10;
-        const INSTANCE_DISPLACEMENT: Vec3 = Vec3::new(
-            NUM_INSTANCES_PER_ROW as f32 * 0.5,
-            NUM_INSTANCES_PER_ROW as f32 * 0.5,
-            NUM_INSTANCES_PER_ROW as f32 * 0.5,
-        );
+        const NUM_INSTANCES_PER_ROW: i32 = 5;
+        const INSTANCE_DISPLACEMENT: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|x| {
@@ -182,12 +179,14 @@ impl iris_engine::renderer::app::App for Example {
             })
             .collect();
         dbg!(instanced_models.len());
-        let octree = Octree::new(&instanced_models, 2);
-        let mut models = octree.visible_models(frustum);
-        let visible_instances: Vec<Instance> = models
-            .iter()
-            .map(|m| Instance::new(Mat4::from(m.transform)))
-            .collect();
+        let octree = Octree::build(&instanced_models, 2);
+        let visible_model_ids = octree.visible_models(frustum);
+        let visible_instances = instanced_models
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| visible_model_ids.contains(i))
+            .map(|(_, m)| Instance::new(m.transform.into()))
+            .collect_vec();
         dbg!(visible_instances.len());
         let visible_buffer = VertexBuffer::new(visible_instances, &r.device);
         let mut encoder = r

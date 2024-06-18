@@ -26,39 +26,21 @@ impl Vec3RefractExt for Vec3 {
 #[cfg(test)]
 mod tests {
 
-    use std::ops::RangeInclusive;
-
     use approx::assert_abs_diff_eq;
     use glam::Vec3;
-    use proptest::prop_compose;
     use proptest::proptest;
-    use proptest::strategy::Strategy;
 
     use crate::geometry::reflection::Vec3ReflectExt;
+    use crate::tests::any_normal;
 
-    prop_compose! {
-        fn any_vec3(range:RangeInclusive<f32>)
-                    (x in range.clone(),y in range.clone(),z in range)
-                    -> Vec3 {
-            Vec3::new(x, y, z)
-        }
-    }
-    prop_compose! {
-        fn any_normal(range:RangeInclusive<f32>)
-                    (n in any_vec3(range).prop_filter_map("normal needs to be able to be normalized",
-                    Vec3::try_normalize))
-                    -> Vec3 {
-            n
-        }
-    }
     proptest! {
         #[test]
-        fn test_reflect(input in any_normal(-1.0..=1.0),normal in any_normal(-1.0..=1.0)){
-            _test_reflect(input, normal);
+        fn reflect(input in any_normal(),normal in any_normal()){
+            _reflect(input, normal);
         }
     }
 
-    fn _test_reflect(input: Vec3, normal: Vec3) {
+    fn _reflect(input: Vec3, normal: Vec3) {
         let output = input.reflect(normal);
         let angle1 = normal.angle_between(input);
         let angle2 = normal.angle_between(output);

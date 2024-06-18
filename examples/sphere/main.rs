@@ -62,7 +62,7 @@ impl iris_engine::renderer::app::App for Example {
     }
 
     fn init(r: &mut Renderer) -> Self {
-        let sphere = Sphere::new(1.0).mesh();
+        let sphere = Sphere::new(Vec3::ZERO, 1.0).mesh();
         let vertices = sphere.vertices();
         let indices = sphere.indices();
         let vertex_buffer = VertexBuffer::new(vertices, &r.device);

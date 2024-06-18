@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 2843a5a5036dd280789343f5772f69dd07a16e01dbf010421641fa2c908302b5 # shrinks to size1 = Vec3(0.1, 0.1, 0.1), size2 = Vec3(0.1, 0.1, 0.1), center = Vec3(0.0, 0.0, 0.0), rotation = Quat(-0.0, -0.0, -0.9468151, 0.3217782)
+cc 1cf03bee7cece1dc6f074b0dcaa27c89fba954b17a2cc3ad6db3e06434852b51 # shrinks to center = Vec3(0.0, 0.0, 0.0), size = Vec3(0.1, 0.1, 0.1), offset = Vec3(0.01, 0.01, 0.7714722)

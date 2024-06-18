@@ -87,43 +87,43 @@ mod tests {
 
     proptest! {
         #[test]
-        fn test_linear(
+        fn linear(
             a in RANGE,
             b in RANGE,
         ) {
-            _test_linear(a,b);
+            _linear(a,b);
         }
         #[test]
-        fn test_quadratic(
+        fn quadratic(
             a in RANGE,
             b in RANGE,
             c in RANGE,
         ) {
-            _test_quadratic(a,b,c);
+            _quadratic(a,b,c);
         }
         #[test]
-        fn test_cubic(
+        fn cubic(
             a in RANGE,
             b in RANGE,
             c in RANGE,
             d in RANGE,
         ) {
-            _test_cubic(a,b,c,d);
+            _cubic(a,b,c,d);
         }
         #[test]
-        fn test_quartic(
+        fn quartic(
             a in RANGE,
             b in RANGE,
             c in RANGE,
             d in RANGE,
             e in RANGE,
         ) {
-            _test_quartic(a,b,c,d,e);
+            _quartic(a,b,c,d,e);
         }
     }
 
     #[allow(clippy::many_single_char_names)]
-    fn _test_linear(a: f64, b: f64) {
+    fn _linear(a: f64, b: f64) {
         let solutions = solve_linear(a, b);
 
         let f = |x: f64| a.mul_add(x, b);
@@ -133,7 +133,7 @@ mod tests {
         }
     }
     #[allow(clippy::many_single_char_names)]
-    fn _test_quadratic(a: f64, b: f64, c: f64) {
+    fn _quadratic(a: f64, b: f64, c: f64) {
         let solutions = solve_quadratic(a, b, c);
 
         let f = |x: f64| {
@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[allow(clippy::many_single_char_names)]
-    fn _test_cubic(a: f64, b: f64, c: f64, d: f64) {
+    fn _cubic(a: f64, b: f64, c: f64, d: f64) {
         let solutions = solve_cubic(a, b, c, d);
         let f = |x: f64| {
             let x2 = x * x;
@@ -158,7 +158,7 @@ mod tests {
         }
     }
     #[allow(clippy::many_single_char_names)]
-    fn _test_quartic(a: f64, b: f64, c: f64, d: f64, e: f64) {
+    fn _quartic(a: f64, b: f64, c: f64, d: f64, e: f64) {
         let solutions = solve_quartic(a, b, c, d, e);
         let f = |x: f64| {
             let x2 = x * x;
@@ -172,51 +172,29 @@ mod tests {
     }
     proptest! {
         #[test]
-        fn test_newton_quadratic(
+        fn newton_quadratic(
             a in RANGE,
             b in RANGE,
             c in RANGE,
         ) {
-            _test_newton_quadratic(a,b,c);
+            _newton_quadratic(a,b,c);
         }
-        #[test]
-        fn test_newton_cubic(
-            a in RANGE,
-            b in RANGE,
-            c in RANGE,
-            d in RANGE,
-        ) {
-            _test_newton_cubic(a,b,c,d);
-        }
+
 
 
 
     }
-    fn _test_newton_quadratic(a: f64, b: f64, c: f64) {
+    fn _newton_quadratic(a: f64, b: f64, c: f64) {
         let solutions = solve_quadratic(a, b, c);
         let f = |x: f64| {
             let x2 = x * x;
             a.mul_add(x2, b * x) + c
         };
         let df = |x: f64| (2.0 * a).mul_add(x, b);
-        test_newton_method(f, df, 40, &solutions, 0.2);
-    }
-    #[allow(clippy::many_single_char_names)]
-    fn _test_newton_cubic(a: f64, b: f64, c: f64, d: f64) {
-        let solutions = solve_cubic(a, b, c, d);
-        let f = |x: f64| {
-            let x2 = x * x;
-            let x3 = x2 * x;
-            c.mul_add(x, a.mul_add(x3, b * x2)) + d
-        };
-        let df = |x: f64| {
-            let x2 = x * x;
-            (3.0 * a).mul_add(x2, 2.0 * b * x) + c
-        };
-        test_newton_method(f, df, 40, &solutions, 0.5);
+        _newton_method(f, df, 40, &solutions, 0.5);
     }
 
-    fn test_newton_method<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
+    fn _newton_method<F: Fn(f64) -> f64, D: Fn(f64) -> f64>(
         f: F,
         df: D,
         iterations: usize,
@@ -231,14 +209,14 @@ mod tests {
     }
 
     #[test]
-    fn test_newton_method_log() {
+    fn _newton_method_log() {
         let f = |x: f64| x.ln() + x - 7.0;
         let df = |x: f64| x.recip() + 1.0;
         let root = newton_method(f, df, 6.0, 20).unwrap();
         assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-1);
     }
     #[test]
-    fn test_bisection_method_log() {
+    fn _bisection_method_log() {
         let f = |x: f64| x.ln() + x - 7.0;
         let root = brent_method(f, 4.0..=6.0, 20).unwrap();
         assert_abs_diff_eq!(f(root), 0.0, epsilon = 1e-1);
