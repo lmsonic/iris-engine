@@ -38,6 +38,7 @@ impl iris_engine::renderer::app::App for Example {
             .show(gui, |ui| {
                 if self.model.gui(ui, &r.device, &r.queue) {
                     self.pipeline = MaterialPipelineBuilder::new(self.model.material())
+                        .add_bind_group(&self.model.transform_bind_group().layout)
                         .add_bind_group(&self.bind_group.layout)
                         .depth(self.depth_texture.texture.format())
                         .build::<Vertex>(&r.device, r.config.format);

@@ -2,7 +2,7 @@
 
 use glam::{Mat3A, Mat4, Vec3A};
 
-use crate::geometry::plane::Plane;
+use crate::collision::plane::Plane;
 
 use super::bounding_volume::{aabb::Aabb, bounding_sphere::BoundingSphere, obb::Obb};
 
@@ -166,7 +166,7 @@ mod tests {
     use glam::Vec4;
 
     use crate::{
-        geometry::plane::Plane,
+        collision::plane::Plane,
         renderer::camera::{OrthographicCamera, PerspectiveCamera},
         visibility::frustum::FrustumBuilder,
     };

@@ -6,12 +6,7 @@ struct VertexInput {
     @location(3) tangent: vec3<f32>,
     @location(4) bitangent: vec3<f32>,
 };
-struct InstanceInput {
-    @location(5) x_axis: vec4<f32>,
-    @location(6) y_axis: vec4<f32>,
-    @location(7) z_axis: vec4<f32>,
-    @location(8) w_axis: vec4<f32>,
-};
+
 
 
 @group(0) @binding(0) var texture: texture_2d<f32>;
@@ -32,16 +27,10 @@ struct InstanceInput {
 @vertex
 fn vs_main(
     v: VertexInput,
-    i: InstanceInput,
 ) -> VertexOutput {
     var result: VertexOutput;
-    let instance_transform = mat4x4<f32>(
-        i.x_axis,
-        i.y_axis,
-        i.z_axis,
-        i.w_axis,
-    );
-    result.clip_position = camera.proj * camera.view * instance_transform * transform * vec4f(v.position, 1.0);
+
+    result.clip_position = camera.proj * camera.view * transform * vec4f(v.position, 1.0);
     result.position = (transform * vec4f(v.position, 1.0)).xyz;
     result.normal = (transform * vec4f(v.normal, 1.0)).xyz;
     result.uv = v.uv;

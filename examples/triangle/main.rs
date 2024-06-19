@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use glam::{Affine3A, Vec3};
 use iris_engine::{
-    geometry::shapes::Triangle,
+    collision::shapes::Triangle,
     renderer::{
         bind_group::{BindGroup, BindGroupBuilder},
         buffer::{IndexBuffer, StorageBufferArray, UniformBuffer, VertexBuffer},
@@ -22,7 +22,7 @@ use iris_engine::{
 struct Example {
     vertex_buffer: VertexBuffer<Vertex>,
     index_buffer: IndexBuffer,
-    camera_lights_bind_group: BindGroup,
+    bind_group: BindGroup,
     camera_uniform: UniformBuffer<OrbitCamera>,
     pipeline: wgpu::RenderPipeline,
     pipeline_wire: Option<wgpu::RenderPipeline>,
@@ -41,7 +41,8 @@ impl iris_engine::renderer::app::App for Example {
             .show(gui, |ui| {
                 if self.model.gui(ui, &r.device, &r.queue) {
                     self.pipeline = MaterialPipelineBuilder::new(self.model.material())
-                        .add_bind_group(&self.camera_lights_bind_group.layout)
+                        .add_bind_group(&self.model.transform_bind_group().layout)
+                        .add_bind_group(&self.bind_group.layout)
                         .depth(self.depth_texture.texture.format())
                         .build::<Vertex>(&r.device, r.config.format);
                 }
@@ -115,7 +116,7 @@ impl iris_engine::renderer::app::App for Example {
         Self {
             vertex_buffer,
             index_buffer,
-            camera_lights_bind_group: bind_group,
+            bind_group,
             camera_uniform,
             pipeline,
             pipeline_wire,
@@ -151,7 +152,7 @@ impl iris_engine::renderer::app::App for Example {
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.model.material().bind_group().bind_group, &[]);
             rpass.set_bind_group(1, &self.model.transform_bind_group().bind_group, &[]);
-            rpass.set_bind_group(2, &self.camera_lights_bind_group.bind_group, &[]);
+            rpass.set_bind_group(2, &self.bind_group.bind_group, &[]);
             rpass.set_index_buffer(
                 self.index_buffer.buffer.slice(..),
                 wgpu::IndexFormat::Uint32,

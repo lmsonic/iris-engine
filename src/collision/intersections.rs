@@ -1,5 +1,3 @@
-use crate::visibility::bounding_volume::aabb::Aabb;
-
 use super::{
     plane::Plane,
     ray::Ray,
@@ -167,9 +165,9 @@ mod tests {
     use proptest::prop_compose;
     use proptest::proptest;
 
-    use crate::geometry::intersections::sphere_intersect_sphere;
-    use crate::geometry::shapes::Cuboid;
-    use crate::geometry::{
+    use crate::collision::intersections::sphere_intersect_sphere;
+    use crate::collision::shapes::Cuboid;
+    use crate::collision::{
         plane::Plane,
         ray::Ray,
         shapes::{cylinder::Cylinder, Ellipsoid, Sphere, Triangle},

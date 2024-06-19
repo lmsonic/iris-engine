@@ -30,7 +30,7 @@ mod tests {
     use glam::Vec3;
     use proptest::proptest;
 
-    use crate::geometry::reflection::Vec3ReflectExt;
+    use crate::collision::reflection::Vec3ReflectExt;
     use crate::tests::any_normal;
 
     proptest! {

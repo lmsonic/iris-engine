@@ -81,7 +81,7 @@ mod tests {
     use approx::assert_abs_diff_eq;
 
     use super::{brent_method, solve_cubic, solve_linear, solve_quadratic, solve_quartic};
-    use crate::geometry::root_finding::newton_method;
+    use crate::collision::root_finding::newton_method;
     use proptest::prelude::*;
     const RANGE: RangeInclusive<f64> = -1.0..=1.0;
 

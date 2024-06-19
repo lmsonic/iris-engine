@@ -8,7 +8,7 @@ use winit::{
 };
 
 use crate::{
-    geometry::plane::Plane,
+    collision::plane::Plane,
     visibility::frustum::{Frustum, FrustumBuilder},
     GpuSendable,
 };
