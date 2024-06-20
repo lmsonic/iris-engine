@@ -34,7 +34,7 @@ pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
             rotation_changed |= ui.drag_angle(&mut eulers.z).changed();
         });
         if rotation_changed {
-            let rotation = Quat::from_euler(glam::EulerRot::XYZ, eulers.x, eulers.y, eulers.z);
+            let rotation = Quat::from_euler(EulerRot::XYZ, eulers.x, eulers.y, eulers.z);
             *transform = Affine3A::from_scale_rotation_translation(scale, rotation, translation);
             changed = true;
         }

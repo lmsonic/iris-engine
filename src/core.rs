@@ -1,4 +1,11 @@
+pub mod bind_group;
+pub mod buffer;
 pub mod component;
+pub mod compute;
 pub mod entity;
+pub mod gpu_sendable;
+pub mod image;
+pub mod material;
 pub mod renderer;
+pub mod resources;
 pub mod transform;

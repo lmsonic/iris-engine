@@ -1,12 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 
-pub mod collision;
-pub mod core;
-pub mod renderer;
-
-pub(crate) mod tests;
-pub mod visibility;
-
 pub trait GpuSendable<T>
 where
     T: Clone + Copy + Pod + Zeroable,
