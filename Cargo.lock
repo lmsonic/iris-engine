@@ -1729,6 +1729,7 @@ dependencies = [
  "approx",
  "assets_manager",
  "bytemuck",
+ "downcast-rs",
  "egui",
  "egui-wgpu",
  "egui-winit",

@@ -1,18 +1,8 @@
-use std::{
-    any::{Any, TypeId},
-    collections::HashMap,
-    rc::Rc,
-};
+use std::{any::TypeId, collections::HashMap};
 
 use slotmap::{new_key_type, SlotMap};
-use tracing::warn;
 
-use super::{component::Component, transform::Transform};
-
-#[derive(Debug)]
-pub struct EntityHierarchy {
-    entities: Vec<Entity>,
-}
+use super::component::Component;
 
 new_key_type! {
     pub struct ComponentId;
@@ -35,7 +25,8 @@ impl Entity {
         }
     }
     pub fn add_component<T: Component>(&mut self, component: T) {
-        self.components.insert(Box::new(component));
+        let id = self.components.insert(Box::new(component));
+        self.type_map.insert(TypeId::of::<T>(), id);
     }
 
     pub fn new_component<T: Component + Default>(&mut self) {
@@ -44,12 +35,12 @@ impl Entity {
     }
     pub fn get_component<T: Component>(&self) -> Option<&T> {
         let id = self.type_map.get(&TypeId::of::<T>())?;
-        let component: &dyn Any = self.components.get(*id)?;
+        let component = self.components.get(*id)?;
         component.downcast_ref()
     }
     pub fn get_component_mut<T: Component>(&mut self) -> Option<&mut T> {
         let id = self.type_map.get(&TypeId::of::<T>())?;
-        let component: &mut dyn Any = self.components.get_mut(*id)?;
+        let component = self.components.get_mut(*id)?;
         component.downcast_mut()
     }
     pub fn has_component<T: Component>(&self) -> bool {

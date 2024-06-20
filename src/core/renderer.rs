@@ -15,11 +15,11 @@ pub struct Renderer {
 impl Renderer {
     const SRGB: bool = true;
 
-    fn optional_features() -> wgpu::Features {
+    const fn optional_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
-    fn required_features() -> wgpu::Features {
+    const fn required_features() -> wgpu::Features {
         wgpu::Features::empty()
     }
 
