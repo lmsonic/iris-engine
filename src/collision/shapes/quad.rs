@@ -1,8 +1,7 @@
-use approx::{assert_abs_diff_eq, assert_abs_diff_ne};
-use glam::{Vec2, Vec3};
-use itertools::Itertools;
+use approx::assert_abs_diff_eq;
+use glam::Vec3;
 
-use crate::collision::{linear_systems::orient_3d, shapes::Plane};
+use crate::collision::linear_systems::orient_3d;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Quad {

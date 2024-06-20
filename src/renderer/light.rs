@@ -62,20 +62,15 @@ impl Light {
             Self::PointLight(ref mut light) => {
                 ui.label("Point Light");
                 changed |= color_edit(ui, &mut light.color, "Color");
-                changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
+                changed |= vec3_edit(ui, &mut light.position, "Position");
                 changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
-                changed |= array3_edit(
-                    ui,
-                    &mut light.attenuation,
-                    "Attenuation function",
-                    0.0..=5.0,
-                );
+                changed |= array3_edit(ui, &mut light.attenuation, "Attenuation function");
             }
             Self::SpotLight(ref mut light) => {
                 ui.label("Spot Light");
                 changed |= color_edit(ui, &mut light.color, "Color");
                 changed |= direction_edit(ui, &mut light.direction, "Direction");
-                changed |= vec3_edit(ui, &mut light.position, "Position", -10.0..=10.0);
+                changed |= vec3_edit(ui, &mut light.position, "Position");
                 changed |= float_edit(ui, &mut light.range, "Range", 1.0..=100.0);
                 ui.horizontal(|ui| {
                     changed |= drag_angle_clamp(ui, &mut light.outer_cutoff, 0.0..=90.0).changed();

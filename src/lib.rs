@@ -1,7 +1,9 @@
 use bytemuck::{Pod, Zeroable};
 
 pub mod collision;
+pub mod core;
 pub mod renderer;
+pub mod resource;
 pub(crate) mod tests;
 pub mod visibility;
 

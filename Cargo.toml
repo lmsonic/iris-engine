@@ -32,6 +32,7 @@ variant-size-differences = "warn"
 # missing_docs_in_private_items = "warn"
 missing_errors_doc = "allow"
 mod_module_files = "warn"
+partial-pub-fields = "allow"
 suspicious = { level = "warn", priority = -1 }
 complexity = { level = "warn", priority = -1 }
 perf = { level = "warn", priority = -1 }
@@ -100,3 +101,5 @@ egui-winit = "0.27.2"
 raw-window-handle = "0.6.0"
 rfd = "0.14.1"
 egui_extras = { version = "0.27.2", features = ["all_loaders"] }
+slotmap = "1.0.7"
+assets_manager = "0.11.6"

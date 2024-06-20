@@ -1,7 +1,7 @@
 use egui::load::SizedTexture;
 use egui::{Button, DragValue, Response, Slider, TextureId, Ui, Vec2};
 
-use glam::{Affine3A, Quat, Vec3};
+use glam::{Affine3A, EulerRot, Quat, Vec3};
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
@@ -14,7 +14,7 @@ pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
     ui.collapsing("Transform", |ui| {
         let (mut scale, rotation, mut translation) = transform.to_scale_rotation_translation();
         let mut eulers: Vec3 = rotation.to_euler(glam::EulerRot::XYZ).into();
-        if vec3_edit(ui, &mut translation, "Translation", -10.0..=10.0) {
+        if vec3_edit(ui, &mut translation, "Translation") {
             transform.translation = translation.into();
             changed = true;
         }
@@ -39,10 +39,7 @@ pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
             changed = true;
         }
         // TODO: uniform scale toggle
-        if vec3_edit(ui, &mut scale, "Scale", -10.0..=10.0)
-            && scale.x != 0.0
-            && scale.y != 0.0
-            && scale.z != 0.0
+        if vec3_edit(ui, &mut scale, "Scale") && scale.x != 0.0 && scale.y != 0.0 && scale.z != 0.0
         {
             *transform = Affine3A::from_scale_rotation_translation(scale, rotation, translation);
             changed = true;
@@ -159,28 +156,70 @@ pub fn color_edit<I: Into<Color> + From<Color> + Clone + Copy>(
     .changed()
 }
 
-pub fn vec3_edit(ui: &mut Ui, v: &mut Vec3, label: &str, range: RangeInclusive<f32>) -> bool {
+pub fn quat_edit(ui: &mut Ui, rotation: &mut Quat, euler_rot: EulerRot) {
+    ui.label("Rotation (Euler)");
+    let mut eulers: Vec3 = rotation.to_euler(euler_rot).into();
+    let mut rotation_changed = false;
+    ui.horizontal(|ui| {
+        ui.label("X");
+        rotation_changed |= ui.drag_angle(&mut eulers.x).changed();
+    });
+    ui.horizontal(|ui| {
+        ui.label("Y");
+        rotation_changed |= ui.drag_angle(&mut eulers.y).changed();
+    });
+    ui.horizontal(|ui| {
+        ui.label("Z");
+        rotation_changed |= ui.drag_angle(&mut eulers.z).changed();
+    });
+    if rotation_changed {
+        *rotation = Quat::from_euler(euler_rot, eulers.x, eulers.y, eulers.z);
+    }
+}
+
+pub fn vec3_edit(ui: &mut Ui, v: &mut Vec3, label: &str) -> bool {
     ui.label(label);
     let mut changed = ui
-        .add(Slider::new(&mut v.x, range.clone()).text("X"))
-        .changed();
+        .horizontal(|ui| {
+            ui.label("X");
+            ui.add(DragValue::new(&mut v.x)).changed()
+        })
+        .inner;
     changed |= ui
-        .add(Slider::new(&mut v.y, range.clone()).text("Y"))
-        .changed();
-    changed |= ui.add(Slider::new(&mut v.z, range).text("Z")).changed();
+        .horizontal(|ui| {
+            ui.label("Y");
+            ui.add(DragValue::new(&mut v.y)).changed()
+        })
+        .inner;
+    changed |= ui
+        .horizontal(|ui| {
+            ui.label("Z");
+            ui.add(DragValue::new(&mut v.z)).changed()
+        })
+        .inner;
     changed
 }
 
-pub fn array3_edit(ui: &mut Ui, v: &mut [f32; 3], label: &str, range: RangeInclusive<f32>) -> bool {
+pub fn array3_edit(ui: &mut Ui, v: &mut [f32; 3], label: &str) -> bool {
     ui.label(label);
-
     let mut changed = ui
-        .add(Slider::new(&mut v[0], range.clone()).text("X"))
-        .changed();
+        .horizontal(|ui| {
+            ui.label("X");
+            ui.add(DragValue::new(&mut v[0])).changed()
+        })
+        .inner;
     changed |= ui
-        .add(Slider::new(&mut v[1], range.clone()).text("Y"))
-        .changed();
-    changed |= ui.add(Slider::new(&mut v[2], range).text("Z")).changed();
+        .horizontal(|ui| {
+            ui.label("Y");
+            ui.add(DragValue::new(&mut v[1])).changed()
+        })
+        .inner;
+    changed |= ui
+        .horizontal(|ui| {
+            ui.label("Z");
+            ui.add(DragValue::new(&mut v[2])).changed()
+        })
+        .inner;
     changed
 }
 
