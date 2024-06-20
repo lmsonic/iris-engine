@@ -13,7 +13,7 @@ pub fn transform_edit(ui: &mut Ui, transform: &mut Affine3A) -> bool {
     let mut changed = false;
     ui.collapsing("Transform", |ui| {
         let (mut scale, rotation, mut translation) = transform.to_scale_rotation_translation();
-        let mut eulers: Vec3 = rotation.to_euler(glam::EulerRot::XYZ).into();
+        let mut eulers: Vec3 = rotation.to_euler(EulerRot::XYZ).into();
         if vec3_edit(ui, &mut translation, "Translation") {
             transform.translation = translation.into();
             changed = true;

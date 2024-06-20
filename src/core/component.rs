@@ -1,7 +1,7 @@
-use std::{any::Any, fmt::Debug};
+use std::fmt::Debug;
 
 use egui::Ui;
 
-pub trait Component: Any + Debug {
+pub trait Component: 'static + Debug {
     fn gui(&mut self, _ui: &mut Ui) {}
 }

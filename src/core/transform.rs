@@ -71,9 +71,9 @@ impl Transform {
         ));
     }
 
-    pub fn set_parent(&mut self, parent: &Rc<Self>) {
+    pub fn set_parent(&mut self, parent: Rc<Self>) {
         let global_transform = self.global_transform();
-        self.parent = Some(parent.clone());
+        self.parent = Some(parent);
         // Maintain previous global transform
         self.set_global_transform(global_transform);
     }
