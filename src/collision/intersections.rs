@@ -1,8 +1,6 @@
 use super::{
-    plane::Plane,
-    ray::Ray,
     root_finding::solve_quadratic,
-    shapes::{cylinder::Cylinder, Cuboid, Ellipsoid, Sphere, Triangle},
+    shapes::{Cuboid, Cylinder, Ellipsoid, Plane, Ray, Sphere, Triangle},
 };
 use approx::abs_diff_eq;
 use glam::Vec3;
@@ -28,7 +26,7 @@ pub fn ray_intersect_triangle(ray: Ray, triangle: Triangle) -> Option<Vec3> {
 
     if let Some(point) = ray_intersect_plane(ray, triangle_plane) {
         // Calculate baricentric coordinates to check if it is inside the triangle
-        if triangle.is_inside_triangle(point) {
+        if triangle.contains(point) {
             return Some(point);
         }
     }
@@ -167,11 +165,7 @@ mod tests {
 
     use crate::collision::intersections::sphere_intersect_sphere;
     use crate::collision::shapes::Cuboid;
-    use crate::collision::{
-        plane::Plane,
-        ray::Ray,
-        shapes::{cylinder::Cylinder, Ellipsoid, Sphere, Triangle},
-    };
+    use crate::collision::shapes::{Cylinder, Ellipsoid, Plane, Ray, Sphere, Triangle};
     use crate::tests::any_normal;
     use crate::tests::any_vec3;
 
@@ -278,7 +272,7 @@ mod tests {
             let plane = Plane::new(triangle.v1, triangle.normal());
             assert_abs_diff_eq!(plane.signed_distance_to(point), 0.0, epsilon = 1e-1);
             assert_abs_diff_eq!(ray.distance_to(point), 0.0, epsilon = 1e-1);
-            assert!(triangle.is_inside_triangle(point));
+            assert!(triangle.contains(point));
             let opposite_ray = Ray::new(ray.start, -ray.direction);
             let intersect = ray_intersect_triangle(opposite_ray, triangle);
             assert!(intersect.is_none());

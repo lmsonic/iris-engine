@@ -1,6 +1,9 @@
 use glam::{Mat2, Vec2, Vec3};
 
-use crate::renderer::mesh::{Mesh, Meshable, Vertex};
+use crate::{
+    collision::linear_systems::solve_linear_system_2d,
+    renderer::mesh::{Mesh, Meshable, Vertex},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Triangle {
@@ -15,22 +18,29 @@ impl Triangle {
     }
 
     pub fn normal(&self) -> Vec3 {
-        (self.v2 - self.v1).cross(self.v3 - self.v1)
+        (self.v2 - self.v1).cross(self.v3 - self.v1).normalize()
     }
 
-    pub(crate) fn is_inside_triangle(&self, point: Vec3) -> bool {
-        // Calculate baricentric coordinates to check if it is inside the triangle
-        let r = point - self.v1;
-        let q1 = self.v2 - self.v1;
-        let q2 = self.v3 - self.v1;
-        let dot = q1.dot(q2);
+    pub fn baricentric_coordinates(&self, point: Vec3) -> (f32, f32, f32) {
+        let d0 = self.v2 - self.v1;
+        let d1 = self.v3 - self.v1;
+        let d2 = point - self.v1;
+        let dot = d0.dot(d1);
         let coefficients = Mat2::from_cols(
-            [q1.length_squared(), dot].into(),
-            [dot, q2.length_squared()].into(),
+            [d0.length_squared(), dot].into(),
+            [dot, d1.length_squared()].into(),
         );
-        let constants = Vec2::new(r.dot(q1), r.dot(q2));
-        let weights = coefficients.inverse() * constants;
-        weights.x >= 0.0 && weights.y >= 0.0 && weights.x + weights.y <= 1.0
+        let constants = Vec2::new(d2.dot(d0), d2.dot(d1));
+        let baricentric = solve_linear_system_2d(coefficients, constants)
+            .expect("Tried to calculate baricentric coordinates of degenerate triangle");
+        let v = baricentric.x;
+        let w = baricentric.y;
+        (1.0 - v - w, v, w)
+    }
+
+    pub(crate) fn contains(&self, point: Vec3) -> bool {
+        let (_, v, w) = self.baricentric_coordinates(point);
+        v >= 0.0 && w >= 0.0 && v + w <= 1.0
     }
 }
 impl Meshable for Triangle {

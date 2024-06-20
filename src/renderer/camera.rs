@@ -7,11 +7,7 @@ use winit::{
     event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent},
 };
 
-use crate::{
-    collision::plane::Plane,
-    visibility::frustum::{Frustum, FrustumBuilder},
-    GpuSendable,
-};
+use crate::{collision::shapes::Plane, visibility::frustum::Frustum, GpuSendable};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OrbitCamera {
