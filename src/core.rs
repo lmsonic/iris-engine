@@ -1,11 +1,14 @@
+pub mod app;
 pub mod bind_group;
 pub mod buffer;
 pub mod component;
 pub mod compute;
+pub mod egui_renderer;
 pub mod entity;
 pub mod gpu_sendable;
 pub mod image;
 pub mod material;
+pub mod material_renderer;
 pub mod renderer;
 pub mod resources;
 pub mod transform;

@@ -12,28 +12,38 @@ pub struct Renderer {
     pub config: wgpu::SurfaceConfiguration,
 }
 
-impl Renderer {
-    const SRGB: bool = true;
+#[derive(Debug, Clone)]
+pub struct RendererSettings {
+    pub srgb: bool,
+    pub optional_features: wgpu::Features,
+    pub required_features: wgpu::Features,
+    pub required_downlevel_capabilities: wgpu::DownlevelCapabilities,
+    pub required_limits: wgpu::Limits,
+}
 
-    const fn optional_features() -> wgpu::Features {
-        wgpu::Features::empty()
-    }
-
-    const fn required_features() -> wgpu::Features {
-        wgpu::Features::empty()
-    }
-
-    fn required_downlevel_capabilities() -> wgpu::DownlevelCapabilities {
-        wgpu::DownlevelCapabilities {
-            flags: wgpu::DownlevelFlags::empty(),
-            ..wgpu::DownlevelCapabilities::default()
+impl Default for RendererSettings {
+    fn default() -> Self {
+        Self {
+            srgb: true,
+            optional_features: wgpu::Features::empty(),
+            required_features: wgpu::Features::empty(),
+            required_downlevel_capabilities: wgpu::DownlevelCapabilities {
+                flags: wgpu::DownlevelFlags::empty(),
+                ..wgpu::DownlevelCapabilities::default()
+            },
+            required_limits: wgpu::Limits::downlevel_defaults(),
         }
     }
+}
 
-    fn required_limits() -> wgpu::Limits {
-        wgpu::Limits::downlevel_defaults() // These downlevel limits will allow the code to run on all possible hardware
-    }
+impl Renderer {
     pub async fn new(window: Arc<winit::window::Window>) -> Self {
+        Self::with_settings(window, RendererSettings::default()).await
+    }
+    pub async fn with_settings(
+        window: Arc<winit::window::Window>,
+        settings: RendererSettings,
+    ) -> Self {
         tracing::info!("Initializing wgpu...");
 
         let backends = wgpu::util::backend_bits_from_env().unwrap_or_default();
@@ -64,7 +74,7 @@ impl Renderer {
         let mut config = surface
             .get_default_config(&adapter, width, height)
             .expect("Surface isn't supported by the adapter.");
-        if Self::SRGB {
+        if settings.srgb {
             // Not all platforms (WebGPU) support sRGB swapchains, so we need to use view formats
             let view_format = config.format.add_srgb_suffix();
             config.view_formats.push(view_format);
@@ -77,8 +87,8 @@ impl Renderer {
         let adapter_info = adapter.get_info();
         tracing::info!("Using {} ({:?})", adapter_info.name, adapter_info.backend);
 
-        let optional_features = Self::optional_features();
-        let required_features = Self::required_features();
+        let optional_features = settings.optional_features;
+        let required_features = settings.required_features;
         let adapter_features = adapter.features();
         assert!(
             adapter_features.contains(required_features),
@@ -86,7 +96,7 @@ impl Renderer {
             required_features - adapter_features
         );
 
-        let required_downlevel_capabilities = Self::required_downlevel_capabilities();
+        let required_downlevel_capabilities = settings.required_downlevel_capabilities;
         let downlevel_capabilities = adapter.get_downlevel_capabilities();
         assert!(
             downlevel_capabilities.shader_model >= required_downlevel_capabilities.shader_model,
@@ -102,7 +112,7 @@ impl Renderer {
         );
 
         // Make sure we use the texture resolution limits from the adapter, so we can support images the size of the surface.
-        let needed_limits = Self::required_limits().using_resolution(adapter.limits());
+        let needed_limits = settings.required_limits.using_resolution(adapter.limits());
 
         let trace_dir = std::env::var("WGPU_TRACE");
         let (device, queue) = adapter

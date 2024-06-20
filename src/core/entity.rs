@@ -1,17 +1,45 @@
 use std::{any::TypeId, collections::HashMap};
 
-use slotmap::{new_key_type, SlotMap};
+use slotmap::{new_key_type, DenseSlotMap, SlotMap};
 
-use super::component::Component;
+use super::{component::Component, transform::Transform};
 
 new_key_type! {
-    pub struct ComponentId;
+    pub struct ComponentKey;
+    pub struct EntityKey;
 }
-#[derive(Debug, Default)]
+
+#[derive(Default)]
+pub struct EntityHierarchy {
+    pub entities: DenseSlotMap<EntityKey, Entity>,
+}
+
+impl EntityHierarchy {
+    pub fn new() -> Self {
+        Self {
+            entities: DenseSlotMap::default(),
+        }
+    }
+    pub fn add_entity(&mut self, name: String) -> EntityKey {
+        let entity = Entity::new(name);
+        self.entities.insert(entity)
+    }
+    pub fn remove_entity(&mut self, entity: EntityKey) -> Option<Entity> {
+        self.entities.remove(entity)
+    }
+
+    pub fn update_transform_hierarchies(&mut self) {
+        for (_, entity) in &mut self.entities {
+            entity.update_transform_hierarchies();
+        }
+    }
+}
+// Only one component per entity
+#[derive(Default)]
 pub struct Entity {
     pub name: String,
-    components: SlotMap<ComponentId, Box<dyn Component>>,
-    type_map: HashMap<TypeId, ComponentId>,
+    components: SlotMap<ComponentKey, Box<dyn Component>>,
+    type_map: HashMap<TypeId, ComponentKey>,
     children: Vec<Entity>,
 }
 
@@ -43,8 +71,25 @@ impl Entity {
         let component = self.components.get_mut(*id)?;
         component.downcast_mut()
     }
+    pub fn remove_component<T: Component>(&mut self) -> Option<Box<dyn Component>> {
+        let id = self.type_map.get(&TypeId::of::<T>())?;
+        self.components.remove(*id)
+    }
     pub fn has_component<T: Component>(&self) -> bool {
         self.type_map.contains_key(&TypeId::of::<T>())
+    }
+
+    pub fn update_transform_hierarchies(&mut self) {
+        // let Some(transform) = self.get_component::<Transform>() else {
+        //     return;
+        // };
+        // for child_transform in self
+        //     .children
+        //     .iter_mut()
+        //     .filter_map(|c| c.get_component_mut::<Transform>())
+        // {
+        //     child_transform.update_global_transform(*transform);
+        // }
     }
 
     pub fn add_child(&mut self, child: Self) {

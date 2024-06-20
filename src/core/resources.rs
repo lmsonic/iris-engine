@@ -6,13 +6,15 @@ use slotmap::{new_key_type, SlotMap};
 new_key_type! {
     pub struct ResourceKey;
 }
+
+pub trait Resource: 'static + Send + Sync {}
 #[derive(Debug)]
-pub struct ResourceHandle<T: 'static + Send + Sync> {
+pub struct ResourceHandle<T: Resource + ?Sized> {
     key: ResourceKey,
     phantom: PhantomData<T>,
 }
 
-impl<T: 'static + Send + Sync> ResourceHandle<T> {
+impl<T: Resource> ResourceHandle<T> {
     const fn new(key: ResourceKey) -> Self {
         Self {
             key,
@@ -22,7 +24,7 @@ impl<T: 'static + Send + Sync> ResourceHandle<T> {
 }
 pub struct ResourceManager {
     pub external_assets: AssetCache<FileSystem>,
-    resources: SlotMap<ResourceKey, Box<dyn 'static + Send + Sync>>,
+    resources: SlotMap<ResourceKey, Box<dyn Resource>>,
 }
 
 impl ResourceManager {
@@ -32,19 +34,16 @@ impl ResourceManager {
             resources: SlotMap::default(),
         })
     }
-    pub fn save_resource<T: 'static + Send + Sync>(&mut self, resource: T) -> ResourceHandle<T> {
+    pub fn save_resource<T: Resource>(&mut self, resource: T) -> ResourceHandle<T> {
         let id = self.resources.insert(Box::new(resource));
         ResourceHandle::new(id)
     }
-    pub fn load_resource<T: 'static + Send + Sync>(
-        &self,
-        handle: &ResourceHandle<T>,
-    ) -> Option<&T> {
+    pub fn load_resource<T: Resource>(&self, handle: &ResourceHandle<T>) -> Option<&T> {
         let resource: &dyn Any = self.resources.get(handle.key)?;
         resource.downcast_ref()
     }
     #[allow(clippy::needless_pass_by_ref_mut)]
-    pub fn load_resource_mut<T: 'static + Send + Sync>(
+    pub fn load_resource_mut<T: Resource>(
         &mut self,
         handle: &mut ResourceHandle<T>,
     ) -> Option<&mut T> {
@@ -52,7 +51,10 @@ impl ResourceManager {
         resource.downcast_mut()
     }
     #[allow(clippy::needless_pass_by_value)]
-    pub fn remove_resource<T: 'static + Send + Sync>(&mut self, handle: ResourceHandle<T>) {
-        self.resources.remove(handle.key);
+    pub fn remove_resource<T: Resource>(
+        &mut self,
+        handle: ResourceHandle<T>,
+    ) -> Option<Box<dyn Resource>> {
+        self.resources.remove(handle.key)
     }
 }

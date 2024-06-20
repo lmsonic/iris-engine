@@ -3,9 +3,11 @@ use crate::{core::buffer::UniformBuffer, renderer::color::Color};
 use super::{
     bind_group::{AsBindGroup, BindGroupLayoutBuilder, OwnedBindingResource},
     image::Image,
-    resources::{ResourceHandle, ResourceManager},
+    resources::{Resource, ResourceHandle, ResourceManager},
 };
 
+pub trait Material: Resource {}
+impl<T: Material> Resource for T {}
 #[derive(Debug)]
 pub struct StandardMaterial {
     pub diffuse_texture: ResourceHandle<Image>,
@@ -17,13 +19,12 @@ pub struct StandardMaterial {
     pub ambient: Color,
 }
 
+impl Material for StandardMaterial {}
+
 impl AsBindGroup for StandardMaterial {
-    type Data = Self;
-
-    fn data(&self) -> Self::Data {
-        todo!()
+    fn label() -> Option<&'static str> {
+        Some("StandardMaterial")
     }
-
     fn bindings(
         &self,
         device: &wgpu::Device,

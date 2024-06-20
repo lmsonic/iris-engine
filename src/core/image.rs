@@ -1,12 +1,11 @@
-use glam::Vec2;
 use image::{DynamicImage, ImageError};
-use wgpu::{util::DeviceExt, BindGroupLayout, Extent3d};
+use wgpu::{util::DeviceExt, Extent3d};
 
 use crate::{core::compute::ComputePipelineBuilder, renderer::resources::get_max_mip_level_count};
 
-use super::{bind_group::BindGroupLayoutBuilder, compute};
+use super::{bind_group::BindGroupLayoutBuilder, resources::Resource};
 
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct Image {
@@ -15,6 +14,8 @@ pub struct Image {
     pub sampler: wgpu::SamplerDescriptor<'static>,
     pub texture_view_descriptor: Option<wgpu::TextureViewDescriptor<'static>>,
 }
+
+impl Resource for Image {}
 
 impl Default for Image {
     fn default() -> Self {
@@ -145,33 +146,27 @@ impl GpuImage {
 }
 
 impl Image {
-    pub fn new(
-        image: DynamicImage,
-        size: Extent3d,
-        dimension: wgpu::TextureDimension,
-        format: wgpu::TextureFormat,
-    ) -> Self {
+    pub fn new(image: DynamicImage) -> Self {
         let mut image = Self {
             image,
             ..Default::default()
         };
-        image.texture_descriptor.dimension = dimension;
-        image.texture_descriptor.size = size;
-        image.texture_descriptor.format = format;
+        image.texture_descriptor.dimension = wgpu::TextureDimension::D2;
+        image.texture_descriptor.size = Extent3d {
+            width: image.image.width(),
+            height: image.image.height(),
+            depth_or_array_layers: 1,
+        };
+        image.texture_descriptor.format = wgpu::TextureFormat::Rgba8Unorm;
         let mip_level_count = get_max_mip_level_count(image.image.width(), image.image.height());
         image.texture_descriptor.mip_level_count = mip_level_count;
         image
     }
 
-    pub fn from_path(
-        path: impl AsRef<Path>,
-        size: Extent3d,
-        dimension: wgpu::TextureDimension,
-        format: wgpu::TextureFormat,
-    ) -> Result<Self, ImageError> {
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ImageError> {
         let image = image::open(&path)?;
 
-        Ok(Self::new(image, size, dimension, format))
+        Ok(Self::new(image))
     }
     pub fn to_gpu(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> GpuImage {
         let binding = self.image.as_rgb8().unwrap();

@@ -3,7 +3,6 @@ use wgpu::BindGroupEntry;
 use super::resources::ResourceManager;
 
 pub trait AsBindGroup {
-    type Data;
     fn label() -> Option<&'static str> {
         None
     }
@@ -12,10 +11,9 @@ pub trait AsBindGroup {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         resources: &ResourceManager,
-    ) -> BindGroup<Self::Data> {
+    ) -> BindGroup {
         let layout = Self::bind_group_layout(device);
         let bindings = self.bindings(device, queue, resources);
-        let data = self.data();
         let entries = bindings
             .iter()
             .enumerate()
@@ -30,10 +28,8 @@ pub trait AsBindGroup {
             entries: &entries,
         });
 
-        BindGroup::new(layout, bind_group, data)
+        BindGroup::new(layout, bind_group)
     }
-
-    fn data(&self) -> Self::Data;
 
     fn bindings(
         &self,
@@ -63,19 +59,14 @@ impl OwnedBindingResource {
 }
 
 #[derive(Debug)]
-pub struct BindGroup<T> {
+pub struct BindGroup {
     layout: wgpu::BindGroupLayout,
     bind_group: wgpu::BindGroup,
-    data: T,
 }
 
-impl<T> BindGroup<T> {
-    fn new(layout: wgpu::BindGroupLayout, bind_group: wgpu::BindGroup, data: T) -> Self {
-        Self {
-            layout,
-            bind_group,
-            data,
-        }
+impl BindGroup {
+    fn new(layout: wgpu::BindGroupLayout, bind_group: wgpu::BindGroup) -> Self {
+        Self { layout, bind_group }
     }
 }
 
