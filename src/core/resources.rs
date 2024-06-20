@@ -1,9 +1,7 @@
-use std::{any::Any, marker::PhantomData, sync::OnceLock};
+use std::{any::Any, marker::PhantomData};
 
 use assets_manager::{source::FileSystem, AssetCache};
 use slotmap::{new_key_type, SlotMap};
-
-use super::image::Image;
 
 new_key_type! {
     pub struct ResourceKey;
@@ -13,8 +11,6 @@ pub struct ResourceHandle<T: 'static + Send + Sync> {
     key: ResourceKey,
     phantom: PhantomData<T>,
 }
-
-static ResourceManager: OnceLock<ResourceManager> = OnceLock::new();
 
 impl<T: 'static + Send + Sync> ResourceHandle<T> {
     const fn new(key: ResourceKey) -> Self {

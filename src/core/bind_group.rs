@@ -1,18 +1,26 @@
 use wgpu::BindGroupEntry;
 
+use super::resources::ResourceManager;
+
 pub trait AsBindGroup {
     type Data;
     fn label() -> Option<&'static str> {
         None
     }
-    fn as_bind_group(&self, device: &wgpu::Device) -> BindGroup<Self::Data> {
+    fn as_bind_group(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        resources: &ResourceManager,
+    ) -> BindGroup<Self::Data> {
         let layout = Self::bind_group_layout(device);
-        let bindings = self.bindings(device, &layout);
+        let bindings = self.bindings(device, queue, resources);
         let data = self.data();
         let entries = bindings
             .iter()
+            .enumerate()
             .map(|(index, binding)| BindGroupEntry {
-                binding: *index,
+                binding: index as u32,
                 resource: binding.get_binding(),
             })
             .collect::<Vec<_>>();
@@ -30,8 +38,9 @@ pub trait AsBindGroup {
     fn bindings(
         &self,
         device: &wgpu::Device,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Vec<(u32, OwnedBindingResource)>;
+        queue: &wgpu::Queue,
+        resources: &ResourceManager,
+    ) -> Vec<OwnedBindingResource>;
 
     fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout;
 }

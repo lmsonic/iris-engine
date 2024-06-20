@@ -1,9 +1,9 @@
-use crate::renderer::color::Color;
+use crate::{core::buffer::UniformBuffer, renderer::color::Color};
 
 use super::{
-    bind_group::{AsBindGroup, BindGroupLayoutBuilder},
+    bind_group::{AsBindGroup, BindGroupLayoutBuilder, OwnedBindingResource},
     image::Image,
-    resources::ResourceHandle,
+    resources::{ResourceHandle, ResourceManager},
 };
 
 #[derive(Debug)]
@@ -27,9 +27,24 @@ impl AsBindGroup for StandardMaterial {
     fn bindings(
         &self,
         device: &wgpu::Device,
-        layout: &wgpu::BindGroupLayout,
-    ) -> Vec<(u32, super::bind_group::OwnedBindingResource)> {
-        todo!()
+        queue: &wgpu::Queue,
+        resources: &ResourceManager,
+    ) -> Vec<OwnedBindingResource> {
+        let diffuse_texture = resources.load_resource(&self.diffuse_texture).unwrap();
+        let normal_texture = resources.load_resource(&self.normal_map).unwrap();
+        let diffuse_view = diffuse_texture.to_gpu(device, queue);
+        let normal_view = normal_texture.to_gpu(device, queue);
+        vec![
+            OwnedBindingResource::TextureView(diffuse_view.texture_view),
+            OwnedBindingResource::Sampler(diffuse_view.sampler),
+            OwnedBindingResource::Buffer(UniformBuffer::new(self.diffuse_color, device).buffer),
+            OwnedBindingResource::TextureView(normal_view.texture_view),
+            OwnedBindingResource::Sampler(normal_view.sampler),
+            OwnedBindingResource::Buffer(UniformBuffer::new(self.specular, device).buffer),
+            OwnedBindingResource::Buffer(UniformBuffer::new(self.ior, device).buffer),
+            OwnedBindingResource::Buffer(UniformBuffer::new(self.roughness, device).buffer),
+            OwnedBindingResource::Buffer(UniformBuffer::new(self.ambient, device).buffer),
+        ]
     }
 
     fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {

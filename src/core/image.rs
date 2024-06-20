@@ -40,12 +40,12 @@ impl Default for Image {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GpuImage {
-    pub texture: Arc<wgpu::Texture>,
-    pub texture_view: Arc<wgpu::TextureView>,
+    pub texture: wgpu::Texture,
+    pub texture_view: wgpu::TextureView,
     pub texture_format: wgpu::TextureFormat,
-    pub sampler: Arc<wgpu::Sampler>,
+    pub sampler: wgpu::Sampler,
     pub size: Extent3d,
     pub mip_level_count: u32,
 }
@@ -173,8 +173,8 @@ impl Image {
 
         Ok(Self::new(image, size, dimension, format))
     }
-    pub fn to_gpu(self, device: &wgpu::Device, queue: &wgpu::Queue) -> GpuImage {
-        let binding = self.image.into_rgba8();
+    pub fn to_gpu(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> GpuImage {
+        let binding = self.image.as_rgb8().unwrap();
         let data = binding.as_raw();
         let texture = device.create_texture_with_data(
             queue,
@@ -184,13 +184,13 @@ impl Image {
         );
 
         let size = self.texture_descriptor.size;
-        let texture_view_descriptor = self.texture_view_descriptor.unwrap_or_default();
+        let texture_view_descriptor = self.texture_view_descriptor.clone().unwrap_or_default();
 
-        let texture_view = texture.create_view(&texture_view_descriptor).into();
-        let sampler = device.create_sampler(&self.sampler).into();
+        let texture_view = texture.create_view(&texture_view_descriptor);
+        let sampler = device.create_sampler(&self.sampler);
 
         let mut image = GpuImage {
-            texture: texture.into(),
+            texture,
             texture_view,
             texture_format: self.texture_descriptor.format,
             sampler,
