@@ -71,9 +71,10 @@ impl Entity {
         let component = self.components.get_mut(*id)?;
         component.downcast_mut()
     }
-    pub fn remove_component<T: Component>(&mut self) -> Option<Box<dyn Component>> {
+    pub fn remove_component<T: Component>(&mut self) -> Option<Box<T>> {
         let id = self.type_map.get(&TypeId::of::<T>())?;
-        self.components.remove(*id)
+        let pop = self.components.remove(*id)?;
+        pop.downcast().ok()
     }
     pub fn has_component<T: Component>(&self) -> bool {
         self.type_map.contains_key(&TypeId::of::<T>())

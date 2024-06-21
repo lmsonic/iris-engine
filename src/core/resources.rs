@@ -1,13 +1,17 @@
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 
 use assets_manager::{source::FileSystem, AssetCache};
+use downcast_rs::{impl_downcast, Downcast};
 use slotmap::{new_key_type, SlotMap};
 
 new_key_type! {
     pub struct ResourceKey;
 }
 
-pub trait Resource: 'static + Send + Sync {}
+// TODO: wrap it in Arc Mutex/RwLock to make concurrent
+pub trait Resource: Downcast {}
+impl_downcast!(Resource);
+
 #[derive(Debug)]
 pub struct ResourceHandle<T: Resource + ?Sized> {
     key: ResourceKey,
@@ -39,7 +43,7 @@ impl ResourceManager {
         ResourceHandle::new(id)
     }
     pub fn load_resource<T: Resource>(&self, handle: &ResourceHandle<T>) -> Option<&T> {
-        let resource: &dyn Any = self.resources.get(handle.key)?;
+        let resource = self.resources.get(handle.key)?;
         resource.downcast_ref()
     }
     #[allow(clippy::needless_pass_by_ref_mut)]
@@ -47,14 +51,12 @@ impl ResourceManager {
         &mut self,
         handle: &mut ResourceHandle<T>,
     ) -> Option<&mut T> {
-        let resource: &mut dyn Any = self.resources.get_mut(handle.key)?;
+        let resource = self.resources.get_mut(handle.key)?;
         resource.downcast_mut()
     }
     #[allow(clippy::needless_pass_by_value)]
-    pub fn remove_resource<T: Resource>(
-        &mut self,
-        handle: ResourceHandle<T>,
-    ) -> Option<Box<dyn Resource>> {
-        self.resources.remove(handle.key)
+    pub fn remove_resource<T: Resource>(&mut self, handle: ResourceHandle<T>) -> Option<Box<T>> {
+        let resource = self.resources.remove(handle.key)?;
+        resource.downcast().ok()
     }
 }
